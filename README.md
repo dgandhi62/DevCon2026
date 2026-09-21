@@ -10,8 +10,12 @@ wall** — used to showcase four CDK speed capabilities in one iteration loop:
 | **Hotswap** (`cdk deploy --hotswap`) | Phase 3 — `lambda/reactions/index.js` + `lib/constructs/api.ts` |
 | **Express mode** (`cdk deploy --express`) | Phase 3 — `lib/constructs/website.ts` |
 
-See [`docs/PLAN.md`](docs/PLAN.md) for the full design, and
-[`docs/PRESENTER-SCRIPT.md`](docs/PRESENTER-SCRIPT.md) for the on-stage flow.
+Docs:
+- [`docs/PLAN.md`](docs/PLAN.md) — full design
+- [`docs/PRESENTER-SCRIPT.md`](docs/PRESENTER-SCRIPT.md) — on-stage flow
+- [`docs/CHEAT-SHEET.md`](docs/CHEAT-SHEET.md) — the takeaway card
+- [`docs/HOTSWAP.md`](docs/HOTSWAP.md) — ground-up reference for `--hotswap` (read before Phase 3a)
+- [`docs/EXPRESS-MODE.md`](docs/EXPRESS-MODE.md) — ground-up reference for `--express` (read before Phase 3b)
 
 ## The app
 

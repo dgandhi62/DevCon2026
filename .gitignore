@@ -1,0 +1,22 @@
+# Compiled TypeScript output (the CDK app source is .ts; .js is generated)
+bin/*.js
+bin/*.d.ts
+lib/**/*.js
+lib/**/*.d.ts
+*.tsbuildinfo
+
+node_modules
+
+# CDK staging + synth output
+.cdk.staging
+cdk.out
+
+# CPU profiles captured during the Phase 1 synth-performance demo
+*.cpuprofile
+profile/
+
+# The Lambda handler is hand-written JS source, not compiled output — keep it.
+!lambda/**/*.js
+
+# The frontend is hand-written JS source — keep it.
+!frontend/**/*.js

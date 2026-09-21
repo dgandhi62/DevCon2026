@@ -1,0 +1,18 @@
+{
+  "comment": "Session catalog consumed by the SessionAnalytics construct. In the Phase 1 demo, the bug is that this file is read + parsed + hashed once PER session inside the loop, instead of once total. The synth-performance skill should point right here.",
+  "namespace": "DevCon2026/FeedbackWall",
+  "sessions": [
+    { "id": "keynote", "title": "DevCon 2026 Keynote", "track": "main", "capacity": 4000 },
+    { "id": "cdk-speed", "title": "AWS CDK — Skip the wait", "track": "builder-tools", "capacity": 300 },
+    { "id": "serverless-patterns", "title": "Serverless Patterns at Scale", "track": "serverless", "capacity": 450 },
+    { "id": "iac-deep-dive", "title": "Infrastructure as Code Deep Dive", "track": "builder-tools", "capacity": 300 },
+    { "id": "observability", "title": "Observability for Distributed Systems", "track": "operations", "capacity": 350 },
+    { "id": "genai-builders", "title": "GenAI for Builders", "track": "ai", "capacity": 600 },
+    { "id": "data-lakes", "title": "Modern Data Lakes", "track": "data", "capacity": 400 },
+    { "id": "security-first", "title": "Security-First Development", "track": "security", "capacity": 380 },
+    { "id": "edge-compute", "title": "Computing at the Edge", "track": "networking", "capacity": 320 },
+    { "id": "cost-optimization", "title": "Cloud Cost Optimization", "track": "operations", "capacity": 340 },
+    { "id": "container-native", "title": "Container-Native Architectures", "track": "containers", "capacity": 420 },
+    { "id": "event-driven", "title": "Event-Driven Everything", "track": "serverless", "capacity": 440 }
+  ]
+}

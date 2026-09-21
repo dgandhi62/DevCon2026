@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CDK Booth Feedback Wall</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="bg-grid" aria-hidden="true"></div>
+
+    <header class="site-header">
+      <div class="brand">
+        <span class="brand-mark">▲</span>
+        <div class="brand-text">
+          <h1>AWS CDK &mdash; Skip the wait</h1>
+          <p>DevCon 2026 &middot; live feedback wall</p>
+        </div>
+      </div>
+      <div class="stat" id="statPill">
+        <span class="stat-num" id="totalCount">0</span>
+        <span class="stat-label">reactions</span>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="composer" aria-label="Leave a reaction">
+        <h2>Drop a reaction</h2>
+        <p class="composer-hint">What's your take on the sessions so far?</p>
+
+        <form id="reactionForm" autocomplete="off">
+          <div class="mood-row" role="radiogroup" aria-label="Mood">
+            <button type="button" class="mood" data-mood="fire" title="Fire">🔥</button>
+            <button type="button" class="mood" data-mood="mind" title="Mind blown">🤯</button>
+            <button type="button" class="mood" data-mood="love" title="Love it">❤️</button>
+            <button type="button" class="mood" data-mood="think" title="Thinking">🤔</button>
+            <button type="button" class="mood" data-mood="rocket" title="Ship it">🚀</button>
+          </div>
+
+          <div class="field-row">
+            <input
+              id="nameInput"
+              class="text-input name-input"
+              type="text"
+              maxlength="24"
+              placeholder="name (optional)"
+              aria-label="Your name"
+            />
+            <input
+              id="messageInput"
+              class="text-input message-input"
+              type="text"
+              maxlength="140"
+              placeholder="Say something…"
+              aria-label="Your reaction"
+              required
+            />
+            <button id="submitBtn" class="submit" type="submit">Post</button>
+          </div>
+          <p class="form-error" id="formError" role="alert" hidden></p>
+        </form>
+      </section>
+
+      <section class="wall" aria-label="Reactions">
+        <div class="wall-head">
+          <h2>The wall</h2>
+          <div class="wall-actions">
+            <span class="live-dot" id="liveDot" title="Auto-refreshing"></span>
+            <button class="refresh" id="refreshBtn" type="button">Refresh</button>
+          </div>
+        </div>
+
+        <div class="cards" id="cards" aria-live="polite">
+          <!-- reaction cards injected here -->
+        </div>
+
+        <div class="empty" id="emptyState" hidden>
+          <p>No reactions yet. Be the first to post. 👋</p>
+        </div>
+
+        <div class="skeleton" id="skeleton">
+          <div class="sk-card"></div>
+          <div class="sk-card"></div>
+          <div class="sk-card"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span id="apiStatus" class="api-status">connecting…</span>
+      <span class="footer-sep">·</span>
+      <span>authoring → synth → deploy → iterate</span>
+    </footer>
+
+    <!-- config.js is generated at deploy time and sets window.FEEDBACK_API.
+         Absent when opening locally -> the app falls back to demo mode. -->
+    <script src="./config.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

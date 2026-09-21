@@ -11,6 +11,7 @@ wall** — used to showcase four CDK speed capabilities in one iteration loop:
 | **Express mode** (`cdk deploy --express`) | Phase 3 — `lib/constructs/website.ts` |
 
 Docs:
+- [`docs/OVERVIEW.md`](docs/OVERVIEW.md) — **start here**: the whole app, its intent, and how every piece fits
 - [`docs/PLAN.md`](docs/PLAN.md) — full design
 - [`docs/PRESENTER-SCRIPT.md`](docs/PRESENTER-SCRIPT.md) — on-stage flow
 - [`docs/CHEAT-SHEET.md`](docs/CHEAT-SHEET.md) — the takeaway card

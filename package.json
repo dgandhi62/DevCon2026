@@ -10,6 +10,8 @@
     "build": "tsc",
     "watch": "tsc -w",
     "synth": "cdk synth",
+    "test": "node test/ground-state.js",
+    "reset": "git checkout -- bin lib lambda frontend rules && npm run build && echo '\\nDemo code reset to last commit. Run: npm test'",
     "clean": "rm -rf cdk.out lib/**/*.js lib/**/*.d.ts bin/*.js bin/*.d.ts *.tsbuildinfo"
   },
   "devDependencies": {

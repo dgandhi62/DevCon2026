@@ -54,17 +54,32 @@ export class SessionAnalytics extends Construct {
       dashboardName: 'DevCon2026-FeedbackWall-Sessions',
     });
 
-    // We loop over the sessions to build a widget row for each one.
-    //
-    // BUG: buildSessionFingerprint() re-reads + re-parses + re-hashes the whole
-    // config file on EVERY iteration. The file is the same every time. This is
-    // the duplicated work the Phase 1 demo hunts down.
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │ DEMO TOGGLE — PHASE 1  (slow synth ↔ fast synth)                   │
+    // │                                                                    │
+    // │ Comment ONE block, uncomment the OTHER. Do not edit the loop body. │
+    // │  • SLOW block  = the duplicated-work bug (default; skill finds it)  │
+    // │  • FAST block  = the fix (read + hash ONCE, hoisted out of loop)    │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ---- SLOW (default): duplicated work on every iteration -------------
     const sessionCount = readConfig().sessions.length;
+    const getSession = (i: number) => readConfig().sessions[i];          // re-reads file
+    const getFingerprint = (i: number) => buildSessionFingerprint(i, hashRounds); // re-hashes file
+    // ---------------------------------------------------------------------
+
+    // ---- FAST (the fix): compute the invariant work ONCE, before loop ---
+    // const config = readConfig();                       // read + parse once
+    // const baseHash = hashConfig(hashRounds);           // hash the file once
+    // const sessionCount = config.sessions.length;
+    // const getSession = (i: number) => config.sessions[i];
+    // const getFingerprint = (i: number) =>
+    //   crypto.createHash('sha256').update(baseHash + ':' + i).digest('hex');
+    // ---------------------------------------------------------------------
 
     for (let i = 0; i < sessionCount; i++) {
-      const fingerprint = buildSessionFingerprint(i, hashRounds); // <-- duplicated work
-
-      const session = readConfig().sessions[i]; // <-- another duplicated read
+      const fingerprint = getFingerprint(i);
+      const session = getSession(i);
 
       this.dashboard.addWidgets(
         new cloudwatch.TextWidget({

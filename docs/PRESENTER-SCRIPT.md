@@ -14,6 +14,21 @@ Have two things open: a terminal, and the feedback wall in a browser
 (`frontend/index.html` opens straight in demo mode, or the CloudFront URL if
 you've deployed).
 
+**No live coding.** Every change in this demo is a pre-written toggle. In each
+file, find the `DEMO TOGGLE — PHASE N` banner and comment one block / uncomment
+the other. You never write code at the table.
+
+| Phase | File with the toggle | Flip |
+| --- | --- | --- |
+| 1 | `lib/constructs/analytics.ts` | SLOW ↔ FAST |
+| 2 | `lib/phase2-broken-stack.ts` | BROKEN ↔ FIXED |
+| 3a | `lambda/reactions/index.js` | V1 ↔ V2 (adds `source` stamp) |
+| 3b | `lib/constructs/website.ts` | V1 ↔ V2 (adds `errorResponses`) |
+
+After a `.ts` toggle, run `npm run build`. (The Lambda toggle is plain JS — no
+build.) To restore all toggles to baseline between runs: `npm run reset`, then
+`npm test` to confirm 43/43.
+
 ---
 
 ## Opening (30 seconds)
@@ -65,35 +80,23 @@ on:
 > twelve times for no reason. The skill didn't guess — it profiled it and
 > pointed at the line."
 
-**The fix, live.** In `analytics.ts`, the work is duplicated inside the loop.
-Hoist it out so it runs once:
+**The fix, live — no typing.** In `lib/constructs/analytics.ts` find the
+`DEMO TOGGLE — PHASE 1` banner. There are two blocks: **SLOW** (active) and
+**FAST** (commented). Comment the SLOW block, uncomment the FAST block. The FAST
+block hoists the read + hash out of the loop so they run once. Then:
 
-```ts
-// BEFORE (inside the loop): recomputed every iteration
-for (let i = 0; i < sessionCount; i++) {
-  const fingerprint = buildSessionFingerprint(i, hashRounds); // re-hashes whole file
-  const session = readConfig().sessions[i];                   // re-reads file
-  ...
-}
-
-// AFTER: compute the expensive, invariant parts ONCE, before the loop
-const config = readConfig();               // read + parse once
-const baseHash = hashConfig(hashRounds);   // hash the file once, not per-session
-for (let i = 0; i < config.sessions.length; i++) {
-  // cheap: only the per-session suffix varies
-  const fingerprint = crypto.createHash('sha256').update(baseHash + ':' + i).digest('hex');
-  const session = config.sessions[i];
-  ...
-}
+```bash
+npm run build      # recompile TS -> JS (toggles live in .ts)
+time npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
 ```
 
-**Re-run** the timed synth — seconds become sub-second.
+**Re-run** the timed synth — the ~2s of duplicated work disappears.
 
 > "Same dashboard. The waiting is gone."
 
-> **Note for the presenter:** you don't have to apply the fix by hand on stage —
-> `analytics.ts` is written so the bottleneck is obvious. Applying the hoist is
-> optional theatre. The point is the *skill found it*.
+> **Note for the presenter:** flipping the toggle is optional theatre — the real
+> point is the *skill found it*. If you do flip it, remember `npm run build`
+> before the re-synth, and `npm run reset` afterward to restore the baseline.
 
 ---
 
@@ -103,10 +106,11 @@ for (let i = 0; i < config.sessions.length; i++) {
 
 **Setup line:**
 
-> "Next change. I need a bucket for some assets, so I write one. But I make a
-> classic mistake — I leave it open to the public."
+> "Next change. I need a bucket for some assets. But I make a classic mistake —
+> I leave it open to the public."
 
-Point at the `blockPublicAccess` block, all four flags `false`.
+Point at the active **BROKEN** block under the `DEMO TOGGLE — PHASE 2` banner —
+`blockPublicAccess` with all four flags `false`, plus `publicReadAccess: true`.
 
 **Run synth:**
 
@@ -130,19 +134,19 @@ ERROR [CT.S3.PR.1]: Require an Amazon S3 bucket to have block public access sett
 > into a deploy. Instead it failed on my laptop, in one second, and told me the
 > exact construct path and the fix."
 
-**The fix, live.** Open `lib/phase2-fixed-stack.ts` (or edit the broken one):
-
-```ts
-blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-```
-
-**Run synth on the fixed stack:**
+**The fix, live — no typing.** In `lib/phase2-broken-stack.ts` find the
+`DEMO TOGGLE — PHASE 2` banner. Comment the **BROKEN** block, uncomment the
+**FIXED** block (`BLOCK_ALL`). Then:
 
 ```bash
-npx cdk synth SkipTheWait-Phase2-Fixed     # passes, exit 0
+npm run build
+npx cdk synth SkipTheWait-Phase2-Broken     # now PASSES, exit 0
 ```
 
 > "Fixed in seconds, because I learned about it in seconds."
+
+> (Prefer switching stacks over toggling? `npx cdk synth SkipTheWait-Phase2-Fixed`
+> is a standalone always-passing version. Either works.)
 
 > **Under the hood:** validation runs via a policy plugin registered on the App
 > in `bin/app.ts`. We've scoped it to the single public-access rule
@@ -162,41 +166,46 @@ npx cdk synth SkipTheWait-Phase2-Fixed     # passes, exit 0
 
 **Setup line:**
 
-> "The app's live. I want to tweak the API — say, tag every new reaction. That's
-> a Lambda code change. Normally: full CloudFormation deploy. Watch this."
+> "The app's live. I want to tweak the API — tag every new reaction. That's a
+> Lambda code change. Normally: full CloudFormation deploy. Watch this."
 
-Make a small, visible change in the handler (e.g. in `createReaction`, prefix
-the stored message or bump a version string returned by the API).
+**No typing.** In `lambda/reactions/index.js` find the `DEMO TOGGLE — PHASE 3a`
+banner. Comment **V1**, uncomment **V2** (V2 adds `source: "hotswap-demo"` to
+each new reaction). The handler is plain JS — no build step needed.
 
 **Deploy with hotswap:**
 
 ```bash
-cdk deploy SkipTheWait-FeedbackWall --hotswap
+cdk deploy SkipTheWait-FeedbackWall --hotswap --require-approval never
 ```
 
 > "CDK saw the only change was Lambda code, so it skipped CloudFormation
 > entirely and called the Lambda UpdateFunctionCode API directly. Seconds, not
 > minutes."
 
-Refresh the wall to show the change is live.
+Post a new reaction and show the `source: "hotswap-demo"` field is now present
+(via the API response or the wall) — proof the new code is live.
 
 > **Say the caveat:** hotswap deliberately introduces drift. It's a development
 > accelerator, not for production.
 
 ### 3b. Express mode — a broader infrastructure change
 
-**File to open:** `lib/constructs/website.ts` (or anything structural)
+**File to open:** `lib/constructs/website.ts`
 
 **Setup line:**
 
-> "Now a change hotswap can't do on its own — real infrastructure. This goes
-> through CloudFormation. But I don't need to wait for every resource to fully
-> stabilize while I'm iterating."
+> "Now a change hotswap can't do — real infrastructure. This goes through
+> CloudFormation. But I don't need to wait for every resource to fully stabilize
+> while I'm iterating."
 
-**Deploy with express mode:**
+**No typing.** Find the `DEMO TOGGLE — PHASE 3b` banner. Comment **V1**,
+uncomment **V2** (V2 adds SPA-style `errorResponses` to the CloudFront
+distribution — a genuine template change, not hotswappable). Then:
 
 ```bash
-cdk deploy SkipTheWait-FeedbackWall --express
+npm run build
+cdk deploy SkipTheWait-FeedbackWall --express --require-approval never
 ```
 
 > "Express mode reports each resource done as soon as CloudFormation applies the
@@ -223,16 +232,25 @@ Hand them the cheat-sheet card (`docs/CHEAT-SHEET.md`).
 ## Quick command reference
 
 ```bash
+# Before each demo: confirm baseline (all toggles on their default side)
+npm test                                    # expect 43/43, "Ground state is GOOD"
+
 # Phase 1 — slow synth + investigation
 time npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
 NODE_OPTIONS="--cpu-prof --cpu-prof-dir=./profile" npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
+# (flip SLOW->FAST toggle in analytics.ts, then:)  npm run build && <re-run synth>
 
 # Phase 2 — fail fast
 npx cdk synth SkipTheWait-Phase2-Broken     # FAILS: CT.S3.PR.1 + construct path
-npx cdk synth SkipTheWait-Phase2-Fixed      # PASSES
+# (flip BROKEN->FIXED toggle, then:)  npm run build && npx cdk synth SkipTheWait-Phase2-Broken  # PASSES
 
 # Phase 3 — fast deploys (needs an account)
-cdk deploy SkipTheWait-FeedbackWall --hotswap
-cdk deploy SkipTheWait-FeedbackWall --express
+# (flip V1->V2 in lambda/reactions/index.js, then:)
+cdk deploy SkipTheWait-FeedbackWall --hotswap --require-approval never
+# (flip V1->V2 in website.ts, then:)  npm run build &&
+cdk deploy SkipTheWait-FeedbackWall --express --require-approval never
 cdk deploy SkipTheWait-FeedbackWall --express --rollback   # express + auto-rollback
+
+# After a run: restore every toggle to baseline
+npm run reset && npm test
 ```

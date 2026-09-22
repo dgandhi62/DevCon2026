@@ -84,6 +84,17 @@ async function createReaction(event) {
   const name = String(body.name || "anon").trim().slice(0, MAX_NAME) || "anon";
   const mood = VALID_MOODS.includes(body.mood) ? body.mood : "fire";
 
+  // ┌────────────────────────────────────────────────────────────────────┐
+  // │ DEMO TOGGLE — PHASE 3a  (hotswap: Lambda code change)                │
+  // │                                                                      │
+  // │ Comment V1, uncomment V2 (or vice-versa), then:                      │
+  // │   cdk deploy SkipTheWait-FeedbackWall --hotswap                      │
+  // │ The change lands in seconds via the Lambda API — no CloudFormation.  │
+  // │ V2 stamps each new reaction with a `source` field so you can SEE     │
+  // │ the new code is live on the wall / in the API response.              │
+  // └────────────────────────────────────────────────────────────────────┘
+
+  // ---- V1 (default) ---------------------------------------------------
   const reaction = {
     id: randomUUID(),
     name,
@@ -92,6 +103,19 @@ async function createReaction(event) {
     votes: 0,
     createdAt: new Date().toISOString(),
   };
+  // ---------------------------------------------------------------------
+
+  // ---- V2 (hotswapped): adds a `source` stamp -------------------------
+  // const reaction = {
+  //   id: randomUUID(),
+  //   name,
+  //   message,
+  //   mood,
+  //   votes: 0,
+  //   createdAt: new Date().toISOString(),
+  //   source: "hotswap-demo",
+  // };
+  // ---------------------------------------------------------------------
 
   await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: reaction }));
   return respond(201, { reaction });

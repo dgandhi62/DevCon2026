@@ -46,6 +46,18 @@ export class FeedbackWebsite extends Construct {
       autoDeleteObjects: true,
     });
 
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │ DEMO TOGGLE — PHASE 3b  (express mode: broader infra change)       │
+    // │                                                                    │
+    // │ This is a real CloudFormation change to the CloudFront             │
+    // │ distribution (NOT hotswappable). Comment V1, uncomment V2, then:   │
+    // │   cdk deploy SkipTheWait-FeedbackWall --express                    │
+    // │ Express reports done as soon as config is applied — no waiting for │
+    // │ full CloudFront stabilization while you iterate.                   │
+    // │ V2 adds SPA-style error responses (404/403 -> index.html).         │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ---- V1 (default) ---------------------------------------------------
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {
       defaultRootObject: 'index.html',
       defaultBehavior: {
@@ -55,6 +67,23 @@ export class FeedbackWebsite extends Construct {
       },
       comment: 'CDK Booth Feedback Wall (DevCon 2026)',
     });
+    // ---------------------------------------------------------------------
+
+    // ---- V2 (express deploy): adds SPA-style error responses ------------
+    // this.distribution = new cloudfront.Distribution(this, 'Distribution', {
+    //   defaultRootObject: 'index.html',
+    //   defaultBehavior: {
+    //     origin: origins.S3BucketOrigin.withOriginAccessControl(this.bucket),
+    //     viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+    //     cachePolicy: cloudfront.CachePolicy.CACHING_DISABLED,
+    //   },
+    //   comment: 'CDK Booth Feedback Wall (DevCon 2026) — express update',
+    //   errorResponses: [
+    //     { httpStatus: 404, responseHttpStatus: 200, responsePagePath: '/index.html' },
+    //     { httpStatus: 403, responseHttpStatus: 200, responsePagePath: '/index.html' },
+    //   ],
+    // });
+    // ---------------------------------------------------------------------
 
     // Deploy the static assets, plus a generated config.js carrying the API URL.
     new s3deploy.BucketDeployment(this, 'DeploySite', {

@@ -47,13 +47,21 @@ export class FeedbackWebsite extends Construct {
     });
 
     // ┌──────────────────────────────────────────────────────────────────┐
-    // │ DEMO TOGGLE — PHASE 3b  (express mode: broader infra change)       │
+    // │ DEMO TOGGLE — PHASE 3b  (EXPRESS MODE: broader infra change)       │
     // │                                                                    │
-    // │ This is a real CloudFormation change to the CloudFront             │
-    // │ distribution (NOT hotswappable). Comment V1, uncomment V2, then:   │
-    // │   cdk deploy SkipTheWait-FeedbackWall --express                    │
-    // │ Express reports done as soon as config is applied — no waiting for │
-    // │ full CloudFront stabilization while you iterate.                   │
+    // │ WHY THIS PROVES EXPRESS: this changes the CloudFront DISTRIBUTION   │
+    // │ (adds error responses). That is a CloudFormation change — hotswap   │
+    // │ CANNOT do it. And CloudFront is the canonical slow-to-stabilize     │
+    // │ resource: a normal deploy makes you wait for it to re-propagate.    │
+    // │ With --express, CloudFormation reports the update complete as soon  │
+    // │ as the config is applied, skipping that stabilization wait — so the │
+    // │ SAME change returns far faster. The speed delta IS the proof.       │
+    // │                                                                    │
+    // │ Comment V1, uncomment V2, then:                                     │
+    // │   npm run build                                                     │
+    // │   cdk deploy SkipTheWait-FeedbackWall --express --require-approval never │
+    // │ (To feel the contrast, first deploy V2 WITHOUT --express and time   │
+    // │  it, then revert and redeploy WITH --express.)                      │
     // │ V2 adds SPA-style error responses (404/403 -> index.html).         │
     // └──────────────────────────────────────────────────────────────────┘
 

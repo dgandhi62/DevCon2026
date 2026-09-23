@@ -18,14 +18,14 @@ in the exact shape the script expects:
 | Thing | Expected in ground state |
 | --- | --- |
 | The real app (`SkipTheWait-FeedbackWall`) | Synths clean, exit 0, no warnings |
-| Phase 2 broken stack | **Fails** synth with `CT.S3.PR.1` + construct path |
-| Phase 2 fixed stack | Passes synth |
+| Phase 2 guard (`bin/app.ts`) | Registered (ON) — and with it ON, the broken bucket **fails** synth with `CT.S3.PR.1` |
+| Phase 2 broken stack | Still has the public bucket (always broken; the guard is the toggle) |
 | Phase 1 analytics | Synths, but **measurably slower** than the fast path |
-| Phase 1 bottleneck code | Duplicated read + `pbkdf2Sync` still present |
-| Phase 3 targets | Lambda routes, directory asset, config.js wiring intact |
-| Validation plugin | Registered in `bin/app.ts` via `Validations.of(app)` |
+| Phase 1 toggle | On the SLOW side; `pbkdf2Sync` bottleneck present |
+| Phase 3a toggle | On V1 (`API_VERSION = "v1"`); apiVersion surfaced to the wall badge |
+| Phase 3b toggle | On V1 (no `errorResponses`) |
 
-40 checks across 9 sections. Offline only — **no AWS account, no deploy.**
+45 checks across 9 sections. Offline only — **no AWS account, no deploy.**
 
 ## When it fails
 

@@ -94,29 +94,35 @@ The hotswap target is the reactions Lambda: **`lambda/reactions/index.js`**,
 wired up in `lib/constructs/api.ts`. It's a plain-JS directory asset, so there's
 no build step between your edit and the deploy.
 
-**A clean, visible change to make on stage** — tag every new reaction so you can
-prove the new code is live. In `createReaction()`:
+**The change is a pre-written toggle — no live typing.** At the top of the file,
+under the `DEMO TOGGLE — PHASE 3a` banner, flip the `API_VERSION` constant from
+V1 to V2 (comment one line, uncomment the other):
 
 ```js
-const reaction = {
-  id: randomUUID(),
-  name,
-  message,
-  mood,
-  votes: 0,
-  createdAt: new Date().toISOString(),
-  source: "hotswap-demo",   // <-- add a field, or tweak the message formatting
-};
+// ---- V1 (default) ----
+const API_VERSION = "v1";
+
+// ---- V2 (hotswapped) ----
+// const API_VERSION = "v2 · hotswapped 🔥";
 ```
 
-Then:
+`listReactions()` returns `apiVersion`, and the wall shows it as the **`api:`
+badge** in the header. Then:
 
 ```bash
-cdk deploy SkipTheWait-FeedbackWall --hotswap
+cdk deploy SkipTheWait-FeedbackWall --hotswap --require-approval never
 ```
 
-You'll see the CLI report a hotswap of the Lambda (no CloudFormation events),
-finishing in seconds. Post a new reaction on the wall to show the change landed.
+Two proofs, both live:
+- **Terminal:** the CLI reports a *hotswap* of the Lambda — no changeset, no
+  CloudFormation events, done in ~2s.
+- **The wall:** within one poll (~5s) the header badge flips to
+  `api: v2 · hotswapped 🔥` and flashes. No reload — the running Lambda is new.
+
+**Pros to highlight:** fastest edit → running-code loop, no CloudFormation
+round-trip. **Cons to raise (start the conversation):** it introduces drift, has
+no rollback, covers only certain resource types, and is **development-only —
+never production.** See §7.
 
 > Both the API's Lambda AND the frontend's `BucketDeployment` are hotswappable
 > (Lambda code + S3 website assets). So editing a `frontend/*` file and

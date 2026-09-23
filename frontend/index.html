@@ -18,9 +18,14 @@
           <p>DevCon 2026 &middot; live feedback wall</p>
         </div>
       </div>
-      <div class="stat" id="statPill">
-        <span class="stat-num" id="totalCount">0</span>
-        <span class="stat-label">reactions</span>
+      <div class="header-right">
+        <!-- Reflects the apiVersion the Lambda reports. Changes LIVE when you
+             hotswap the handler (Phase 3a) — visible proof on the wall. -->
+        <span class="api-badge" id="apiBadge" title="API version reported by the Lambda">api: —</span>
+        <div class="stat" id="statPill">
+          <span class="stat-num" id="totalCount">0</span>
+          <span class="stat-label">reactions</span>
+        </div>
       </div>
     </header>
 

@@ -24,23 +24,36 @@ import { Phase2FixedStack } from '../lib/phase2-fixed-stack';
  */
 const app = new cdk.App();
 
-// Synth-time validation. This is the Phase 2 capability: right after synth,
-// the plugin validates every generated template. A violation fails synth and
-// prints the failing rule + the construct path — you never reach a deploy.
-//
-// We scope it to ONE crisp, legible rule for the demo: S3 bucket-level Block
-// Public Access (CT.S3.PR.1). The full Control Tower rule set is turned off
-// so the story stays about the one mistake we're making, not a wall of
-// unrelated findings. Drop `controlTowerRulesEnabled: false` to run them all.
-//
-// Registered via the Validations class (the non-deprecated API) rather than
-// the App's `policyValidationBeta1` prop.
+// ┌────────────────────────────────────────────────────────────────────────┐
+// │ DEMO TOGGLE — PHASE 2  (synth-time validation: OFF ↔ ON)                 │
+// │                                                                          │
+// │ This registers the policy-validation plugin that runs right after synth. │
+// │ It is the WHOLE POINT of Phase 2 — so we toggle the GUARD itself, not    │
+// │ the bucket. The Phase2-Broken stack always has the public bucket.        │
+// │                                                                          │
+// │  • OFF (guard commented): `cdk synth SkipTheWait-Phase2-Broken` SUCCEEDS │
+// │      — the misconfigured template sails through, exactly like it would   │
+// │      on a plain deploy. This is the "before".                            │
+// │  • ON  (guard uncommented): the SAME stack now FAILS synth with          │
+// │      CT.S3.PR.1 + the construct path. The guard is provably what caught  │
+// │      it. This is the "after".                                            │
+// │                                                                          │
+// │ Scoped to one rule (S3 Block Public Access) so the story is one clean    │
+// │ finding. Registered via the Validations class (non-deprecated API).      │
+// └────────────────────────────────────────────────────────────────────────┘
+
+// // ---- GUARD ON (default): validation runs, broken bucket is caught ---------
 cdk.Validations.of(app).addPlugins(
   new CfnGuardValidator({
     controlTowerRulesEnabled: false,
     rules: [path.join(__dirname, '..', 'rules', 's3-block-public-access.guard')],
   }),
 );
+// ---------------------------------------------------------------------------
+
+// ---- GUARD OFF (the "before"): no validation, broken bucket slips through --
+// (comment the block above, and this whole demo has no guard registered)
+// ---------------------------------------------------------------------------
 
 const includeAnalytics = app.node.tryGetContext('includeAnalytics') === 'true';
 

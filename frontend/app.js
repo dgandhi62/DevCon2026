@@ -40,6 +40,7 @@
     total: document.getElementById("totalCount"),
     refresh: document.getElementById("refreshBtn"),
     apiStatus: document.getElementById("apiStatus"),
+    apiBadge: document.getElementById("apiBadge"),
     moods: Array.prototype.slice.call(document.querySelectorAll(".mood")),
   };
 
@@ -61,14 +62,16 @@
 
   function listReactions() {
     if (DEMO_MODE) {
-      return Promise.resolve(sortReactions(demoStore.slice()));
+      return Promise.resolve({ list: sortReactions(demoStore.slice()), apiVersion: "demo" });
     }
     return fetch(API_BASE + "/reactions")
       .then(function (r) {
         if (!r.ok) throw new Error("GET failed: " + r.status);
         return r.json();
       })
-      .then(function (data) { return sortReactions(data.reactions || []); });
+      .then(function (data) {
+        return { list: sortReactions(data.reactions || []), apiVersion: data.apiVersion };
+      });
   }
 
   function createReaction(payload) {
@@ -166,15 +169,32 @@
   }
 
   // ---- flow ----
+  var lastApiVersion = null;
+
   function refresh() {
     return listReactions()
-      .then(function (list) {
-        render(list);
+      .then(function (res) {
+        render(res.list);
+        updateApiBadge(res.apiVersion);
         setStatus(DEMO_MODE ? "demo mode (no API configured)" : "live", DEMO_MODE ? "" : "ok");
       })
       .catch(function (err) {
         setStatus("API error: " + err.message, "err");
       });
+  }
+
+  // Show the API version in the header badge. When it CHANGES (e.g. right after
+  // a hotswap), briefly flash the badge so the audience sees the switch live.
+  function updateApiBadge(version) {
+    if (!els.apiBadge || !version) return;
+    els.apiBadge.textContent = "api: " + version;
+    if (lastApiVersion !== null && version !== lastApiVersion) {
+      els.apiBadge.classList.remove("flash");
+      // reflow so the animation restarts even if the class was just removed
+      void els.apiBadge.offsetWidth;
+      els.apiBadge.classList.add("flash");
+    }
+    lastApiVersion = version;
   }
 
   els.form.addEventListener("submit", function (e) {

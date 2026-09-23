@@ -5,31 +5,28 @@ import { Construct } from 'constructs';
 /**
  * PHASE 2 — "Fail fast, not after a 3 minute deploy"
  *
- * One stack, one demo toggle. Synth-time validation runs right after synth. The
- * BROKEN bucket is wide open to the public and FAILS validation (prints the
- * rule + construct path, on your laptop, before any deploy). The FIXED bucket
- * blocks all public access and PASSES.
+ * This stack ALWAYS contains the misconfiguration: an S3 bucket wide open to
+ * the public (block-public-access off, public read granted). It synthesizes
+ * into perfectly valid CloudFormation.
  *
- * At the booth:
- *   npx cdk synth SkipTheWait-Phase2-Broken   # BROKEN block -> FAILS
- *   (flip the toggle below, re-run)           # FIXED block  -> PASSES
+ * The Phase 2 demo does NOT toggle this bucket. It toggles the VALIDATION GUARD
+ * in bin/app.ts:
  *
- * (SkipTheWait-Phase2-Fixed still exists as a separate always-passing stack if
- * you'd rather switch stacks than toggle. Either approach works.)
+ *   • Guard OFF → `cdk synth SkipTheWait-Phase2-Broken` SUCCEEDS. The bad
+ *     bucket sails through — just like it would on a plain deploy. ("before")
+ *   • Guard ON  → the SAME stack FAILS synth with CT.S3.PR.1 + the construct
+ *     path. The guard is provably what caught it. ("after")
+ *
+ * That makes the demo about the CAPABILITY (synth-time validation), not about
+ * hand-fixing a bucket.
  */
 export class Phase2BrokenStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
-    // ┌──────────────────────────────────────────────────────────────────┐
-    // │ DEMO TOGGLE — PHASE 2  (broken ↔ fixed)                            │
-    // │                                                                    │
-    // │ Comment ONE block, uncomment the OTHER. Nothing else changes.      │
-    // │  • BROKEN block = public bucket   -> synth FAILS on CT.S3.PR.1      │
-    // │  • FIXED block  = BLOCK_ALL       -> synth PASSES                   │
-    // └──────────────────────────────────────────────────────────────────┘
-
-    // ---- BROKEN (default): public bucket, validation FAILS --------------
+    // The misconfiguration. Public access is turned off at the bucket level and
+    // public read is granted. Left in place on purpose — the guard is what
+    // decides whether this is allowed to reach a deploy.
     const bucket = new s3.Bucket(this, 'PublicAssets', {
       blockPublicAccess: new s3.BlockPublicAccess({
         blockPublicAcls: false,
@@ -41,17 +38,6 @@ export class Phase2BrokenStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
-    // ---------------------------------------------------------------------
-
-    // ---- FIXED (the fix): block all public access, validation PASSES ----
-    // const bucket = new s3.Bucket(this, 'PublicAssets', {
-    //   blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-    //   encryption: s3.BucketEncryption.S3_MANAGED,
-    //   enforceSSL: true,
-    //   removalPolicy: cdk.RemovalPolicy.DESTROY,
-    //   autoDeleteObjects: true,
-    // });
-    // ---------------------------------------------------------------------
 
     new cdk.CfnOutput(this, 'PublicAssetsBucketName', {
       value: bucket.bucketName,

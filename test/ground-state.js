@@ -286,27 +286,32 @@ check("analytics.config.json has the session catalog", () => {
 });
 
 // ------------------------------------------------------------
-section("7. Phase 2 — toggle is on the BROKEN (baseline) side");
+section("7. Phase 2 — guard is ON and the broken bucket is intact");
 
-check("Phase2-Broken toggle is on the BROKEN side (public access active)", () => {
-  const src = read("lib/phase2-broken-stack.ts");
-  // BROKEN baseline: publicReadAccess: true is active code.
-  const brokenActive = hasActiveLine(src, /publicReadAccess:\s*true/);
-  // FIXED: BLOCK_ALL active would mean the toggle was flipped.
-  const fixedActive = hasActiveLine(src, /BlockPublicAccess\.BLOCK_ALL/);
+check("the GUARD toggle is ON (validator registered) — baseline", () => {
+  const src = read("bin/app.ts");
+  // Baseline: the addPlugins(new CfnGuardValidator(...)) call is active code.
+  const guardOn = hasActiveLine(src, /addPlugins\(/) ||
+    hasActiveLine(src, /new CfnGuardValidator\(/);
   assert(
-    brokenActive && !fixedActive,
-    "Phase 2 toggle is on the FIXED side (or unclear). Reset to baseline: " +
-      "the BROKEN block should be active and the FIXED block commented.",
+    guardOn,
+    "Phase 2 guard toggle is OFF (validator commented out). Reset to baseline: " +
+      "the CfnGuardValidator registration in bin/app.ts should be active.",
   );
 });
 
-check("the always-passing Phase2-Fixed stack still uses BLOCK_ALL", () => {
-  const src = read("lib/phase2-fixed-stack.ts");
+check("Phase2-Broken stack still has the public bucket (always broken)", () => {
+  const src = read("lib/phase2-broken-stack.ts");
   assert(
-    /BlockPublicAccess\.BLOCK_ALL/.test(src),
-    "the standalone fixed stack no longer uses BLOCK_ALL",
+    hasActiveLine(src, /publicReadAccess:\s*true/),
+    "Phase2-Broken no longer opens public access — the misconfig was removed",
   );
+});
+
+check("with guard ON, broken stack actually FAILS synth (end-to-end)", () => {
+  const { code, out } = synth("SkipTheWait-Phase2-Broken");
+  assert(code !== 0, "expected broken stack to FAIL synth with the guard on");
+  assert(out.includes("CT.S3.PR.1"), "expected CT.S3.PR.1 in the failure");
 });
 
 // ------------------------------------------------------------
@@ -343,13 +348,24 @@ check("frontend expects the same API contract", () => {
   assert(/\/reactions/.test(src), "frontend/app.js no longer calls /reactions");
 });
 
-check("Phase 3a hotswap toggle is on V1 (baseline, no source stamp)", () => {
+check("Phase 3a hotswap toggle is on V1 (baseline API_VERSION)", () => {
   const src = read("lambda/reactions/index.js");
-  const v2Active = hasActiveLine(src, /source:\s*"hotswap-demo"/);
+  const v1Active = hasActiveLine(src, /const API_VERSION\s*=\s*"v1"/);
+  const v2Active = hasActiveLine(src, /const API_VERSION\s*=\s*"v2/);
   assert(
-    !v2Active,
-    "hotswap toggle is on V2 (the source stamp is live). Reset to V1 baseline.",
+    v1Active && !v2Active,
+    "hotswap toggle is on V2 (API_VERSION bumped). Reset to V1 baseline.",
   );
+});
+
+check("hotswap change is surfaced to the wall (apiVersion in list response)", () => {
+  const src = read("lambda/reactions/index.js");
+  assert(
+    /apiVersion:\s*API_VERSION/.test(src),
+    "listReactions no longer returns apiVersion — the wall badge won't update",
+  );
+  const fe = read("frontend/app.js");
+  assert(/updateApiBadge/.test(fe), "frontend no longer updates the api badge");
 });
 
 check("Phase 3b express toggle is on V1 (baseline, no errorResponses)", () => {

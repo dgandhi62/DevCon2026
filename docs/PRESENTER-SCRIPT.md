@@ -18,12 +18,12 @@ you've deployed).
 file, find the `DEMO TOGGLE — PHASE N` banner and comment one block / uncomment
 the other. You never write code at the table.
 
-| Phase | File with the toggle | Flip |
-| --- | --- | --- |
-| 1 | `lib/constructs/analytics.ts` | SLOW ↔ FAST |
-| 2 | `lib/phase2-broken-stack.ts` | BROKEN ↔ FIXED |
-| 3a | `lambda/reactions/index.js` | V1 ↔ V2 (adds `source` stamp) |
-| 3b | `lib/constructs/website.ts` | V1 ↔ V2 (adds `errorResponses`) |
+| Phase | File with the toggle | Flip | What the flip proves |
+| --- | --- | --- | --- |
+| 1 | `lib/constructs/analytics.ts` | SLOW ↔ FAST | the skill found the real bottleneck |
+| 2 | `bin/app.ts` | GUARD OFF ↔ ON | the guard is what catches the bad bucket |
+| 3a | `lambda/reactions/index.js` | V1 ↔ V2 (`API_VERSION`) | code-only → hotswap used; **badge flips live on the wall** |
+| 3b | `lib/constructs/website.ts` | V1 ↔ V2 (`errorResponses`) | CFN CloudFront change → express skips the stabilization wait |
 
 After a `.ts` toggle, run `npm run build`. (The Lambda toggle is plain JS — no
 build.) To restore all toggles to baseline between runs: `npm run reset`, then
@@ -102,23 +102,41 @@ time npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
 
 ## Phase 2 — "Fail fast, not after a 3-minute deploy" (2 min)
 
-**File to open:** `lib/phase2-broken-stack.ts`
+This phase toggles the **validation guard itself**, so the audience sees that
+the guard is what catches the mistake — not a hand-fix. The broken bucket stays
+broken the whole time; only the guard moves.
 
-**Setup line:**
+**File to open:** `lib/phase2-broken-stack.ts` (show the mistake), then
+`bin/app.ts` (the `DEMO TOGGLE — PHASE 2` guard banner).
 
-> "Next change. I need a bucket for some assets. But I make a classic mistake —
-> I leave it open to the public."
+### Step 1 — the "before": guard OFF, bad bucket sails through
 
-Point at the active **BROKEN** block under the `DEMO TOGGLE — PHASE 2` banner —
-`blockPublicAccess` with all four flags `false`, plus `publicReadAccess: true`.
+Start with the guard **commented out** in `bin/app.ts` (the OFF side).
 
-**Run synth:**
+> "I need a bucket for some assets, and I've made a classic mistake — I've left
+> it open to the public. Watch what a plain synth does with that."
 
 ```bash
-npx cdk synth SkipTheWait-Phase2-Broken
+npm run build
+npx cdk synth SkipTheWait-Phase2-Broken     # SUCCEEDS (exit 0)
 ```
 
-It **fails at synth** with:
+> "Synth succeeded. That public bucket is perfectly valid CloudFormation — so a
+> plain deploy would happily ship it, and I'd find out in prod. That's the
+> problem."
+
+### Step 2 — the "after": turn the guard ON
+
+In `bin/app.ts`, uncomment the **GUARD ON** block (the
+`Validations.of(app).addPlugins(new CfnGuardValidator(...))` call). **Nothing
+about the bucket changes.**
+
+```bash
+npm run build
+npx cdk synth SkipTheWait-Phase2-Broken     # now FAILS (exit 1)
+```
+
+It fails at synth with:
 
 ```
 ERROR [CT.S3.PR.1]: Require an Amazon S3 bucket to have block public access settings configured
@@ -127,31 +145,29 @@ ERROR [CT.S3.PR.1]: Require an Amazon S3 bucket to have block public access sett
    'RestrictPublicBuckets' must be set to true under the bucket-level 'PublicAccessBlockConfiguration'.
 ```
 
-**The talking point:**
+**The talking point (this is the proof):**
 
-> "That template is perfectly valid CloudFormation. A plain deploy would have
-> accepted it and I'd have shipped a public bucket — or found out three minutes
-> into a deploy. Instead it failed on my laptop, in one second, and told me the
-> exact construct path and the fix."
+> "Same bucket, same template. The only thing I changed was turning the
+> validation guard on. Now the exact misconfiguration is caught at synth — on my
+> laptop, in one second — with the rule and the construct path. That's synth-time
+> validation doing the work, not me."
 
-**The fix, live — no typing.** In `lib/phase2-broken-stack.ts` find the
-`DEMO TOGGLE — PHASE 2` banner. Comment the **BROKEN** block, uncomment the
-**FIXED** block (`BLOCK_ALL`). Then:
+> **Under the hood:** the guard is a real online policy-validation plugin
+> (`@cdklabs/cdk-validator-cfnguard`) registered via
+> `Validations.of(app).addPlugins(...)` in `bin/app.ts`. For a legible demo we
+> scoped it to the single S3 public-access rule
+> (`rules/s3-block-public-access.guard`) so it's one clean finding.
 
-```bash
-npm run build
-npx cdk synth SkipTheWait-Phase2-Broken     # now PASSES, exit 0
-```
+> **Say the bigger capability:** this same plugin ships the full **Control Tower
+> proactive security controls** — dozens of managed rules (encryption at rest,
+> versioning, access logging, SSL-only, public-access, and more) across many
+> resource types. Drop `controlTowerRulesEnabled: false` in `bin/app.ts` and it
+> validates the whole app against that managed security ruleset at synth. You can
+> also add CDK Nag, OPA, or your org's own CFN-Guard rules the same way. Point:
+> this isn't one hand-written check — it's a pluggable, shift-left security gate
+> that runs before anything leaves your laptop.
 
-> "Fixed in seconds, because I learned about it in seconds."
-
-> (Prefer switching stacks over toggling? `npx cdk synth SkipTheWait-Phase2-Fixed`
-> is a standalone always-passing version. Either works.)
-
-> **Under the hood:** validation runs via a policy plugin registered on the App
-> in `bin/app.ts`. We've scoped it to the single public-access rule
-> (`rules/s3-block-public-access.guard`) so the demo stays about one clear
-> mistake. In production you'd run the full managed rule set.
+> **Reset:** the baseline is guard **ON**. `npm run reset` restores it.
 
 ---
 
@@ -160,18 +176,19 @@ npx cdk synth SkipTheWait-Phase2-Broken     # now PASSES, exit 0
 > Only run the actual deploys if you're at a booth with credentials. Otherwise
 > narrate it against the synthesized output.
 
-### 3a. Hotswap — a Lambda code change
+### 3a. Hotswap — a Lambda code change (VISIBLE on the wall)
 
-**File to open:** `lambda/reactions/index.js`
+**File to open:** `lambda/reactions/index.js`. Have the wall on screen — look at
+the **`api:` badge** in the top-right header. It reads `api: v1`.
 
 **Setup line:**
 
-> "The app's live. I want to tweak the API — tag every new reaction. That's a
-> Lambda code change. Normally: full CloudFormation deploy. Watch this."
+> "The app's live. I want to ship a change to the API. Watch the version badge
+> in the corner — and watch how fast this deploys."
 
-**No typing.** In `lambda/reactions/index.js` find the `DEMO TOGGLE — PHASE 3a`
-banner. Comment **V1**, uncomment **V2** (V2 adds `source: "hotswap-demo"` to
-each new reaction). The handler is plain JS — no build step needed.
+**No typing.** Find the `DEMO TOGGLE — PHASE 3a` banner (top of the file).
+Comment **V1**, uncomment **V2** — that's the one-line `API_VERSION` change. The
+handler is plain JS, so no build step.
 
 **Deploy with hotswap:**
 
@@ -179,15 +196,41 @@ each new reaction). The handler is plain JS — no build step needed.
 cdk deploy SkipTheWait-FeedbackWall --hotswap --require-approval never
 ```
 
-> "CDK saw the only change was Lambda code, so it skipped CloudFormation
-> entirely and called the Lambda UpdateFunctionCode API directly. Seconds, not
-> minutes."
+**Proof #1 — the CLI shows it hotswapped.** You'll see something like:
 
-Post a new reaction and show the `source: "hotswap-demo"` field is now present
-(via the API response or the wall) — proof the new code is live.
+```
+✨  hotswapping resources:
+   └ AWS::Lambda::Function 'SkipTheWait-FeedbackWall-ApiHandler...'
+✨  Deployment time: ~2s
+```
 
-> **Say the caveat:** hotswap deliberately introduces drift. It's a development
-> accelerator, not for production.
+No changeset. No `CREATE_/UPDATE_` CloudFormation events. Done in seconds.
+
+**Proof #2 — the wall updates itself.** Within one poll (~5s) the header badge
+flips to **`api: v2 · hotswapped 🔥`** and flashes. No page reload — the running
+Lambda is simply new.
+
+> "CDK saw the only change was Lambda code, so it skipped CloudFormation and
+> called the Lambda UpdateFunctionCode API directly. Two seconds — and the
+> running app changed in front of you, no CloudFormation involved."
+
+**The pros (say these):** tightest possible edit → running-code loop; no
+CloudFormation round-trip; ideal while you're actively developing.
+
+**The cons — invite the conversation (say these):**
+
+> "The trade is honest: hotswap deliberately **introduces drift** — the live
+> function no longer matches what CloudFormation thinks is deployed. There's
+> **no rollback**, it only works for a **limited set of resource types**, and
+> for those reasons it's **development-only — never production.** It's a
+> dev-loop accelerator, not a deployment strategy."
+
+> **Optional strongest contrast:** revert to V1 and redeploy with a plain
+> `cdk deploy` (no `--hotswap`). It builds a changeset, streams CloudFormation
+> events, and takes far longer. Same change, side by side — that's the point.
+
+> **Reconcile drift later:** `cdk deploy --revert-drift` on your next normal
+> deploy. Baseline is V1; `npm run reset` restores it.
 
 ### 3b. Express mode — a broader infrastructure change
 
@@ -195,26 +238,49 @@ Post a new reaction and show the `source: "hotswap-demo"` field is now present
 
 **Setup line:**
 
-> "Now a change hotswap can't do — real infrastructure. This goes through
-> CloudFormation. But I don't need to wait for every resource to fully stabilize
-> while I'm iterating."
+> "Hotswap was a code change. This one is real infrastructure — a CloudFront
+> setting. Hotswap can't touch it; it has to go through CloudFormation. The pain
+> with CloudFront is the stabilization wait — normally the deploy sits there
+> while the distribution re-propagates. Watch the terminal for that wait."
+
+This one's proof is in the **terminal** (the skipped wait), not on the wall —
+it's a config change, not a visible content change. That's the natural contrast
+with the hotswap phase, where the change showed up on screen.
 
 **No typing.** Find the `DEMO TOGGLE — PHASE 3b` banner. Comment **V1**,
 uncomment **V2** (V2 adds SPA-style `errorResponses` to the CloudFront
-distribution — a genuine template change, not hotswappable). Then:
+distribution — a genuine template change, **not** hotswappable). Then:
 
 ```bash
 npm run build
 cdk deploy SkipTheWait-FeedbackWall --express --require-approval never
 ```
 
-> "Express mode reports each resource done as soon as CloudFormation applies the
-> config, instead of waiting for full stabilization. Up to ~4x faster for the
-> iterative changes you make all day while building."
+**Proof the mechanism matters — this is a CloudFront change.** First, show that
+hotswap can't do it:
 
-> **Say the caveat:** express mode doesn't wait for stabilization and won't
-> auto-rollback unless you add `--rollback`. Great for dev iteration, not for
-> production.
+```bash
+# Optional: prove hotswap declines this change
+cdk deploy SkipTheWait-FeedbackWall --hotswap
+# → "SkipTheWait-FeedbackWall (no changes)":
+#   CloudFront distribution changes are NOT hotswappable.
+```
+
+Then deploy it through CloudFormation with express, and it reports complete as
+soon as the config is applied — instead of blocking on CloudFront's
+stabilization/propagation.
+
+> "Hotswap can't touch this — it's a real CloudFront change, so it has to go
+> through CloudFormation. But with `--express`, CloudFormation reports done as
+> soon as the config is applied instead of making me wait for the distribution
+> to fully re-propagate. That wait is exactly what express removes."
+
+> **Strongest proof (timing contrast):** deploy V2 once with a normal
+> `cdk deploy` and note the time, then revert and redeploy with `--express`. The
+> express run returns markedly faster because it skips the stabilization wait.
+
+> **Say the caveat:** express doesn't wait for stabilization and won't
+> auto-rollback unless you add `--rollback`. Dev iteration, not production.
 
 ---
 
@@ -233,16 +299,18 @@ Hand them the cheat-sheet card (`docs/CHEAT-SHEET.md`).
 
 ```bash
 # Before each demo: confirm baseline (all toggles on their default side)
-npm test                                    # expect 43/43, "Ground state is GOOD"
+npm test                                    # expect 45/45, "Ground state is GOOD"
 
 # Phase 1 — slow synth + investigation
 time npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
 NODE_OPTIONS="--cpu-prof --cpu-prof-dir=./profile" npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
 # (flip SLOW->FAST toggle in analytics.ts, then:)  npm run build && <re-run synth>
 
-# Phase 2 — fail fast
-npx cdk synth SkipTheWait-Phase2-Broken     # FAILS: CT.S3.PR.1 + construct path
-# (flip BROKEN->FIXED toggle, then:)  npm run build && npx cdk synth SkipTheWait-Phase2-Broken  # PASSES
+# Phase 2 — fail fast (toggle the GUARD in bin/app.ts, not the bucket)
+# guard OFF (before): broken bucket slips through
+npm run build && npx cdk synth SkipTheWait-Phase2-Broken     # SUCCEEDS
+# guard ON (after): same bucket now caught
+npm run build && npx cdk synth SkipTheWait-Phase2-Broken     # FAILS: CT.S3.PR.1 + path
 
 # Phase 3 — fast deploys (needs an account)
 # (flip V1->V2 in lambda/reactions/index.js, then:)

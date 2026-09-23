@@ -33,6 +33,36 @@ const VALID_MOODS = ["fire", "mind", "love", "think", "rocket"];
 const MAX_MESSAGE = 140;
 const MAX_NAME = 24;
 
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │ DEMO TOGGLE — PHASE 3a  (HOTSWAP: Lambda code change, VISIBLE on the wall) │
+// │                                                                            │
+// │ This is the only thing that changes between V1 and V2 — pure Lambda code.  │
+// │ Nothing in the CloudFormation template moves. That is exactly the case     │
+// │ hotswap handles: `cdk deploy --hotswap` skips CloudFormation and calls the │
+// │ Lambda UpdateFunctionCode API directly (seconds, no changeset, no CFN      │
+// │ events).                                                                   │
+// │                                                                            │
+// │ VISIBLE PROOF: listReactions() returns this string; the wall shows it as   │
+// │ the "api:" badge in the header. Flip V1 -> V2, hotswap, and the badge      │
+// │ changes live on screen within one poll (~5s). No build step — plain JS.    │
+// │                                                                            │
+// │   cdk deploy SkipTheWait-FeedbackWall --hotswap --require-approval never   │
+// │                                                                            │
+// │ PROS to show:  fast dev loop, no CloudFormation round-trip, instant edit-  │
+// │                to-running-code.                                            │
+// │ CONS to raise: introduces drift (resource no longer matches the deployed   │
+// │                template), no rollback, only supported resource types, and  │
+// │                it is DEVELOPMENT-ONLY — never production.                   │
+// └──────────────────────────────────────────────────────────────────────────┘
+
+// ---- V1 (default) ----------------------------------------------------------
+const API_VERSION = "v1";
+// ----------------------------------------------------------------------------
+
+// ---- V2 (hotswapped) -------------------------------------------------------
+// const API_VERSION = "v2 · hotswapped 🔥";
+// ----------------------------------------------------------------------------
+
 exports.handler = async (event) => {
   const method = event.requestContext?.http?.method || event.httpMethod || "GET";
   const rawPath = event.rawPath || event.path || "/reactions";
@@ -64,7 +94,9 @@ async function listReactions() {
     if ((b.votes || 0) !== (a.votes || 0)) return (b.votes || 0) - (a.votes || 0);
     return String(b.createdAt).localeCompare(String(a.createdAt));
   });
-  return respond(200, { reactions: items });
+  // apiVersion rides along on every list response so the wall's header badge
+  // reflects the deployed handler — the visible proof of a hotswap.
+  return respond(200, { reactions: items, apiVersion: API_VERSION });
 }
 
 async function createReaction(event) {
@@ -84,17 +116,6 @@ async function createReaction(event) {
   const name = String(body.name || "anon").trim().slice(0, MAX_NAME) || "anon";
   const mood = VALID_MOODS.includes(body.mood) ? body.mood : "fire";
 
-  // ┌────────────────────────────────────────────────────────────────────┐
-  // │ DEMO TOGGLE — PHASE 3a  (hotswap: Lambda code change)                │
-  // │                                                                      │
-  // │ Comment V1, uncomment V2 (or vice-versa), then:                      │
-  // │   cdk deploy SkipTheWait-FeedbackWall --hotswap                      │
-  // │ The change lands in seconds via the Lambda API — no CloudFormation.  │
-  // │ V2 stamps each new reaction with a `source` field so you can SEE     │
-  // │ the new code is live on the wall / in the API response.              │
-  // └────────────────────────────────────────────────────────────────────┘
-
-  // ---- V1 (default) ---------------------------------------------------
   const reaction = {
     id: randomUUID(),
     name,
@@ -103,19 +124,6 @@ async function createReaction(event) {
     votes: 0,
     createdAt: new Date().toISOString(),
   };
-  // ---------------------------------------------------------------------
-
-  // ---- V2 (hotswapped): adds a `source` stamp -------------------------
-  // const reaction = {
-  //   id: randomUUID(),
-  //   name,
-  //   message,
-  //   mood,
-  //   votes: 0,
-  //   createdAt: new Date().toISOString(),
-  //   source: "hotswap-demo",
-  // };
-  // ---------------------------------------------------------------------
 
   await ddb.send(new PutCommand({ TableName: TABLE_NAME, Item: reaction }));
   return respond(201, { reaction });

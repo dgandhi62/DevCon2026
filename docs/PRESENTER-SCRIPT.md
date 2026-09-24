@@ -229,8 +229,14 @@ CloudFormation round-trip; ideal while you're actively developing.
 > `cdk deploy` (no `--hotswap`). It builds a changeset, streams CloudFormation
 > events, and takes far longer. Same change, side by side — that's the point.
 
-> **Reconcile drift later:** `cdk deploy --revert-drift` on your next normal
-> deploy. Baseline is V1; `npm run reset` restores it.
+> **Resetting after a hotswap (IMPORTANT):** hotswap changes the *running*
+> Lambda but not CloudFormation's record, so flipping the code back to V1 and
+> running a normal `cdk deploy` reports "no changes" and leaves the live
+> function stuck on V2. Do NOT rely on `cdk deploy` / `--force` / `--revert-drift`
+> to undo it. Instead run **`npm run reset:deploy`** — it resets the code AND
+> force-pushes the V1 baseline straight to the running function (via
+> UpdateFunctionCode), so the badge returns to `api: v1` every time. `npm run
+> reset` only resets local code; `reset:deploy` also fixes the deployed Lambda.
 
 ### 3b. Express mode — a broader infrastructure change
 
@@ -319,6 +325,11 @@ cdk deploy SkipTheWait-FeedbackWall --hotswap --require-approval never
 cdk deploy SkipTheWait-FeedbackWall --express --require-approval never
 cdk deploy SkipTheWait-FeedbackWall --express --rollback   # express + auto-rollback
 
-# After a run: restore every toggle to baseline
+# After a run:
+#  - local code only (no deploys done):   restore toggles to baseline
 npm run reset && npm test
+#  - if you DEPLOYED Phase 3 (hotswap/express): also restore the LIVE stack.
+#    This force-pushes the V1 baseline Lambda so the badge returns to api: v1
+#    (a plain redeploy can't — hotswap drift is invisible to CloudFormation).
+npm run reset:deploy
 ```

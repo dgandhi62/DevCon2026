@@ -12,6 +12,7 @@
     "synth": "cdk synth",
     "test": "node test/ground-state.js",
     "reset": "git checkout -- bin lib lambda frontend rules assets test && npm run build && echo '\\nDemo code reset to last commit. Run: npm test'",
+    "reset:deploy": "node scripts/reset-deploy.js",
     "clean": "rm -rf cdk.out lib/**/*.js lib/**/*.d.ts bin/*.js bin/*.d.ts *.tsbuildinfo"
   },
   "devDependencies": {

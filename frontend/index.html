@@ -29,6 +29,18 @@
       </div>
     </header>
 
+    <!-- Session Insights: precomputed at synth time by the SessionAnalytics
+         construct and injected via config.js (window.SESSION_INSIGHTS). This is
+         the visible output of the Phase 1 work the synth-performance skill
+         profiles. -->
+    <section class="insights" id="insightsPanel" aria-label="Session insights">
+      <div class="insights-head">
+        <h2>Session insights</h2>
+        <span class="insights-sub">precomputed at synth · <span id="insightsCount">0</span> sessions</span>
+      </div>
+      <div class="insights-grid" id="insightsGrid"></div>
+    </section>
+
     <main class="wrap">
       <section class="composer" aria-label="Leave a reaction">
         <h2>Drop a reaction</h2>

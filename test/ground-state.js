@@ -216,36 +216,37 @@ check("BROKEN failure names the construct path", () => {
 });
 
 // ------------------------------------------------------------
-section("5. Phase 1 — slow synth is measurably slower");
+section("5. Phase 1 — the BASE app is slow to synth (bottleneck baked in)");
 
 let fastMs = 0;
 let slowMs = 0;
 
-check("app WITHOUT analytics synths (exit 0)", () => {
+check("base app synths (exit 0) — analytics ON by default", () => {
   const t = nowMs();
   const { code } = synth("SkipTheWait-FeedbackWall");
-  fastMs = nowMs() - t;
-  assert(code === 0, `expected exit 0, got ${code}`);
-  return `${fastMs} ms`;
-});
-
-check("app WITH analytics synths (exit 0)", () => {
-  const t = nowMs();
-  const { code } = synth("SkipTheWait-FeedbackWall", ["-c", "includeAnalytics=true"]);
   slowMs = nowMs() - t;
   assert(code === 0, `expected exit 0, got ${code}`);
   return `${slowMs} ms`;
 });
 
-check("analytics path is clearly slower (the Phase 1 bottleneck exists)", () => {
-  // We don't assert an absolute time (hardware varies), only that the slow path
-  // is meaningfully slower. If someone already applied the hoist fix, this fails
-  // — which is the signal to reset analytics.ts to its baseline (slow) state.
+check("fast baseline synths (exit 0) — analytics OFF", () => {
+  const t = nowMs();
+  const { code } = synth("SkipTheWait-FeedbackWall", ["-c", "includeAnalytics=false"]);
+  fastMs = nowMs() - t;
+  assert(code === 0, `expected exit 0, got ${code}`);
+  return `${fastMs} ms`;
+});
+
+check("base app is clearly slower than the fast baseline (bottleneck exists)", () => {
+  // Hardware-independent: only assert the base (analytics-on) synth is
+  // meaningfully slower than the analytics-off baseline. If the hoist fix was
+  // applied, this fails — the signal to reset lib/constructs/analytics.ts.
   const delta = slowMs - fastMs;
   assert(
     delta > 700,
-    `analytics synth was only ${delta}ms slower than fast (${fastMs} vs ${slowMs}). ` +
-      "The Phase 1 bottleneck may have been fixed/removed — reset lib/constructs/analytics.ts.",
+    `base app synth was only ${delta}ms slower than the fast baseline ` +
+      `(${slowMs} vs ${fastMs}). The Phase 1 bottleneck may have been fixed — ` +
+      "reset lib/constructs/analytics.ts to the SLOW toggle.",
   );
   return `+${delta} ms`;
 });
@@ -277,6 +278,28 @@ check("analytics.config.json has the session catalog", () => {
   assert(Array.isArray(cfg.sessions), "sessions array missing");
   assert(cfg.sessions.length >= 5, `expected several sessions, got ${cfg.sessions.length}`);
   return `${cfg.sessions.length} sessions`;
+});
+
+check("the slow work is VISIBLE — insights flow to the wall panel", () => {
+  // analytics exposes the payload...
+  const an = read("lib/constructs/analytics.ts");
+  assert(/public readonly insights/.test(an), "SessionAnalytics no longer exposes `insights`");
+  // ...the website injects it...
+  const site = read("lib/constructs/website.ts");
+  assert(/SESSION_INSIGHTS/.test(site), "website no longer injects window.SESSION_INSIGHTS");
+  // ...and the frontend renders it.
+  const html = read("frontend/index.html");
+  assert(/insightsGrid/.test(html), "frontend has no Session Insights panel");
+  const fe = read("frontend/app.js");
+  assert(/renderInsights/.test(fe) && /SESSION_INSIGHTS/.test(fe), "frontend no longer renders insights");
+});
+
+check("analytics is ON by default in the base app", () => {
+  const stack = read("lib/feedback-wall-stack.ts");
+  assert(
+    /includeAnalytics\s*\?\?\s*true/.test(stack),
+    "analytics is no longer ON by default (base app should be slow out of the box)",
+  );
 });
 
 // ------------------------------------------------------------

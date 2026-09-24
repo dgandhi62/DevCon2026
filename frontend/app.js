@@ -262,7 +262,59 @@
     ];
   }
 
+  // ---- Session Insights panel ----
+  // Rendered from window.SESSION_INSIGHTS, which the CDK BucketDeployment injects
+  // into config.js at deploy time (precomputed at synth by SessionAnalytics).
+  function renderInsights() {
+    var panel = document.getElementById("insightsPanel");
+    var grid = document.getElementById("insightsGrid");
+    var count = document.getElementById("insightsCount");
+    if (!panel || !grid) return;
+
+    var insights = window.SESSION_INSIGHTS;
+    if (DEMO_MODE && (!insights || !insights.length)) insights = seedInsights();
+
+    if (!insights || !insights.length) {
+      panel.hidden = true;
+      return;
+    }
+    panel.hidden = false;
+    if (count) count.textContent = String(insights.length);
+
+    var maxCap = insights.reduce(function (m, s) {
+      return Math.max(m, s.capacity || 0);
+    }, 0) || 1;
+
+    grid.innerHTML = insights
+      .map(function (s) {
+        var pct = Math.round(((s.capacity || 0) / maxCap) * 100);
+        return (
+          '<div class="insight-card">' +
+          '<div class="insight-top">' +
+          '<span class="insight-title">' + escapeHtml(s.title) + "</span>" +
+          '<span class="insight-fp" title="synth-time fingerprint">' + escapeHtml(s.fingerprint || "") + "</span>" +
+          "</div>" +
+          '<span class="insight-track">' + escapeHtml(s.track) + "</span>" +
+          '<div class="insight-bar"><div class="insight-bar-fill" style="width:' + pct + '%"></div></div>' +
+          '<span class="insight-cap">' + (s.capacity || 0) + " seats</span>" +
+          "</div>"
+        );
+      })
+      .join("");
+  }
+
+  function seedInsights() {
+    // Local demo-mode fallback so the panel is populated when opened offline.
+    return [
+      { id: "keynote", title: "DevCon 2026 Keynote", track: "main", capacity: 4000, fingerprint: "a1b2c3d4" },
+      { id: "cdk-speed", title: "AWS CDK — Skip the wait", track: "builder-tools", capacity: 300, fingerprint: "e5f6a7b8" },
+      { id: "serverless-patterns", title: "Serverless Patterns at Scale", track: "serverless", capacity: 450, fingerprint: "c9d0e1f2" },
+      { id: "genai-builders", title: "GenAI for Builders", track: "ai", capacity: 600, fingerprint: "3a4b5c6d" },
+    ];
+  }
+
   // ---- boot ----
+  renderInsights();
   refresh();
   setInterval(refresh, POLL_MS);
 })();

@@ -5,6 +5,7 @@ import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import { Construct } from 'constructs';
+import { SessionInsight } from './analytics';
 
 /**
  * The static feedback-wall frontend: an S3 bucket (private) served through
@@ -16,12 +17,19 @@ import { Construct } from 'constructs';
  * stack complete as soon as CloudFormation applies each resource's config,
  * skipping the stabilization waits — up to ~4x faster for iterative work.
  *
- * The API URL is injected at deploy time as `config.js` (window.FEEDBACK_API),
- * so the frontend has no hard-coded endpoint.
+ * At deploy time a generated `config.js` is injected next to the static files
+ * carrying the API URL (window.FEEDBACK_API) and the Session Insights payload
+ * (window.SESSION_INSIGHTS) precomputed by the analytics construct at synth.
  */
 export interface FeedbackWebsiteProps {
   /** The API invoke URL the frontend should call. */
   readonly apiUrl: string;
+
+  /**
+   * Per-session insights, precomputed at synth time by SessionAnalytics. The
+   * wall renders these in its Session Insights panel. Empty if analytics is off.
+   */
+  readonly sessionInsights: SessionInsight[];
 }
 
 export class FeedbackWebsite extends Construct {
@@ -102,7 +110,8 @@ export class FeedbackWebsite extends Construct {
         s3deploy.Source.asset(path.join(__dirname, '..', '..', 'frontend')),
         s3deploy.Source.data(
           'config.js',
-          `window.FEEDBACK_API = ${JSON.stringify(props.apiUrl)};`,
+          `window.FEEDBACK_API = ${JSON.stringify(props.apiUrl)};\n` +
+            `window.SESSION_INSIGHTS = ${JSON.stringify(props.sessionInsights)};`,
         ),
       ],
     });

@@ -12,10 +12,11 @@ import { Phase2BrokenStack } from '../lib/phase2-broken-stack';
  *   SkipTheWait-FeedbackWall     the real, working app (DynamoDB + Lambda + API GW + CloudFront)
  *   SkipTheWait-Phase2-Broken    a misconfiguration synth-time validation catches
  *
- * Phase 1 (slow synth) is driven by a context flag so the everyday app stays
- * fast. Turn the slow analytics construct on for the Phase 1 walkthrough:
+ * Phase 1 (slow synth) is baked into the base app — analytics is ON by default,
+ * so `cdk synth SkipTheWait-FeedbackWall` is slow out of the box. Drop it to see
+ * the fast baseline:
  *
- *   npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true
+ *   npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=false
  *
  * Everything synthesizes offline. Only the FeedbackWall stack is meant to be
  * deployed (Phase 3: --hotswap and --express), against your own account.
@@ -53,7 +54,10 @@ cdk.Validations.of(app).addPlugins(
 // (comment the block above, and this whole demo has no guard registered)
 // ---------------------------------------------------------------------------
 
-const includeAnalytics = app.node.tryGetContext('includeAnalytics') === 'true';
+// Analytics (the Session Insights panel + the Phase 1 slow-synth bottleneck) is
+// ON by default — it's part of the base app. Pass `-c includeAnalytics=false`
+// to drop it and synth the fast baseline for contrast.
+const includeAnalytics = app.node.tryGetContext('includeAnalytics') !== 'false';
 
 new FeedbackWallStack(app, 'SkipTheWait-FeedbackWall', {
   description: 'The CDK Booth Feedback Wall — live reactions app for DevCon 2026.',

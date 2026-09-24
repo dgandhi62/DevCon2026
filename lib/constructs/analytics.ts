@@ -8,13 +8,16 @@ import { Construct } from 'constructs';
 /**
  * PHASE 1 — "Where is my time going?"
  *
- * SessionAnalytics builds a CloudWatch dashboard with one row of widgets per
- * conference session, plus a per-session "fingerprint" used as a widget title.
+ * SessionAnalytics powers the **Session Insights panel** you see on the wall.
+ * At synth time it precomputes a per-session insights payload (title, track,
+ * a capacity bar, and a short "fingerprint" badge) and exposes it as
+ * `insights`. The website construct injects that payload into the frontend, so
+ * the panel is a real, visible feature of the app — not a hidden dashboard.
  *
  * It works. It is also needlessly slow to synthesize — and the slowness is a
  * DUPLICATED-WORK bug, not cross-stack references and not sheer resource count.
  *
- * The bug (look at buildSessionFingerprint below):
+ * THE BUG (see the SLOW block below + hashConfig):
  *   For every session, the constructor re-reads analytics.config.json from
  *   disk, re-parses the JSON, and re-computes a deliberately expensive hash
  *   over the ENTIRE file. That work is identical on every iteration — the
@@ -22,14 +25,14 @@ import { Construct } from 'constructs';
  *
  * In a CPU profile of `cdk synth` this shows up as "Construction"-phase time
  * dominated by ONE user-code function (buildSessionFingerprint / hashConfig),
- * called N times with identical input. The synth-performance skill should
+ * called N times with identical input. The cdk-synth-performance skill should
  * name this function and these line numbers.
  *
- * THE FIX (shown live on stage): read + parse + hash ONCE before the loop and
- * reuse the result. See docs/PRESENTER-SCRIPT.md for the exact diff.
+ * THE FIX: compute the invariant read + hash ONCE before the loop and reuse it
+ * (the FAST block below). The panel renders identically; synth gets fast.
  */
 export interface SessionAnalyticsProps {
-  /** The reactions table to chart alongside the session widgets. */
+  /** The reactions table to chart on the (secondary) CloudWatch dashboard. */
   readonly table: dynamodb.Table;
 
   /**
@@ -41,9 +44,26 @@ export interface SessionAnalyticsProps {
   readonly hashRounds?: number;
 }
 
+/** One session's insights, as rendered by the wall's Session Insights panel. */
+export interface SessionInsight {
+  readonly id: string;
+  readonly title: string;
+  readonly track: string;
+  readonly capacity: number;
+  /** Short hash badge shown on the card (derived at synth time). */
+  readonly fingerprint: string;
+}
+
 export class SessionAnalytics extends Construct {
-  /** The generated dashboard. */
+  /** The CloudWatch dashboard (secondary artifact). */
   public readonly dashboard: cloudwatch.Dashboard;
+
+  /**
+   * The per-session insights payload, precomputed at synth time. The website
+   * construct injects this into the frontend so the wall can render the
+   * Session Insights panel. THIS is the visible output of the slow work.
+   */
+  public readonly insights: SessionInsight[];
 
   constructor(scope: Construct, id: string, props: SessionAnalyticsProps) {
     super(scope, id);
@@ -53,6 +73,8 @@ export class SessionAnalytics extends Construct {
     this.dashboard = new cloudwatch.Dashboard(this, 'Dashboard', {
       dashboardName: 'DevCon2026-FeedbackWall-Sessions',
     });
+
+    const insights: SessionInsight[] = [];
 
     // ┌──────────────────────────────────────────────────────────────────┐
     // │ DEMO TOGGLE — PHASE 1  (slow synth ↔ fast synth)                   │
@@ -81,6 +103,16 @@ export class SessionAnalytics extends Construct {
       const fingerprint = getFingerprint(i);
       const session = getSession(i);
 
+      // The visible artifact: one insight record per session for the panel.
+      insights.push({
+        id: session.id,
+        title: session.title,
+        track: session.track,
+        capacity: session.capacity,
+        fingerprint: fingerprint.slice(0, 8),
+      });
+
+      // Secondary artifact: a CloudWatch dashboard row per session.
       this.dashboard.addWidgets(
         new cloudwatch.TextWidget({
           markdown: `### ${session.title}\n\`${fingerprint.slice(0, 16)}\` · track: ${session.track}`,
@@ -108,6 +140,8 @@ export class SessionAnalytics extends Construct {
         }),
       );
     }
+
+    this.insights = insights;
   }
 }
 

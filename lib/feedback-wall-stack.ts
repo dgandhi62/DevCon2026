@@ -10,19 +10,25 @@ import { SessionAnalytics } from './constructs/analytics';
  *
  *   DynamoDB (reactions)  <-  Lambda  <-  API Gateway  <-  CloudFront + S3 site
  *
- * Each collaborator lives in its own construct file so the demo can open one
- * file per phase:
+ * The app ships a Session Insights panel, powered by the SessionAnalytics
+ * construct. That construct is part of the BASE app (on by default) — and it is
+ * deliberately slow to synthesize (a duplicated-work bug). That is the Phase 1
+ * story: `cdk synth` is slow out of the box, the cdk-synth-performance skill
+ * finds the bottleneck, you fix it, synth gets fast.
+ *
+ * Each collaborator lives in its own construct file:
  *   - constructs/api.ts       Phase 3 hotswap target (Lambda code)
  *   - constructs/website.ts   Phase 3 express-mode target (broader infra)
- *   - constructs/analytics.ts Phase 1 slow-synth bottleneck (opt-in)
+ *   - constructs/analytics.ts Phase 1 slow-synth bottleneck (Session Insights)
  */
 export interface FeedbackWallStackProps extends cdk.StackProps {
   /**
-   * Include the (deliberately slow) SessionAnalytics construct. This is what
-   * the Phase 1 synth-performance demo investigates. Off by default so the
-   * everyday app synthesizes fast; turn it on for the Phase 1 walkthrough.
+   * Include the SessionAnalytics construct (the Session Insights panel + the
+   * Phase 1 slow-synth bottleneck). ON by default so the base app shows the
+   * inefficiency from the start. Pass `-c includeAnalytics=false` to drop it
+   * (e.g. to show the fast baseline for contrast).
    *
-   * @default false
+   * @default true
    */
   readonly includeAnalytics?: boolean;
 }
@@ -31,22 +37,24 @@ export class FeedbackWallStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props: FeedbackWallStackProps = {}) {
     super(scope, id, props);
 
+    const includeAnalytics = props.includeAnalytics ?? true;
+
     const database = new ReactionsDatabase(this, 'Reactions');
 
     const api = new ReactionsApi(this, 'Api', {
       table: database.table,
     });
 
+    // Phase 1: the Session Insights data is precomputed here at synth time.
+    // See constructs/analytics.ts for the (deliberate) duplicated-work bug.
+    const analytics = includeAnalytics
+      ? new SessionAnalytics(this, 'Analytics', { table: database.table })
+      : undefined;
+
     const website = new FeedbackWebsite(this, 'Website', {
       apiUrl: api.url,
+      sessionInsights: analytics?.insights ?? [],
     });
-
-    // Phase 1: opt-in slow construct. See constructs/analytics.ts.
-    if (props.includeAnalytics) {
-      new SessionAnalytics(this, 'Analytics', {
-        table: database.table,
-      });
-    }
 
     new cdk.CfnOutput(this, 'ApiUrl', {
       value: api.url,

@@ -20,11 +20,15 @@
  * regardless of what CloudFormation thinks. This is idempotent and safe to run
  * before every take.
  *
- * What it does:
+ * What it does (a COMPLETE "toggle everything back and redeploy"):
  *   1. Reset local code to the committed baseline (git checkout) + rebuild.
  *   2. Confirm AWS credentials are valid.
+ *   2.5. Full `cdk deploy --revert-drift` — reverts every TEMPLATE-level change
+ *        back to baseline (Phase 3b express CloudFront change, Phase 2 bucket
+ *        toggle, frontend assets, etc.).
  *   3. Find the deployed reactions Lambda from the stack's resources.
- *   4. Zip the baseline handler and update the function code directly.
+ *   4. Zip the baseline handler and update the function code directly — this is
+ *      the part a normal deploy can't do (hotswap drift is invisible to CFN).
  *   5. Verify GET /reactions reports apiVersion "v1".
  *
  * Usage:  npm run reset:deploy
@@ -71,6 +75,23 @@ try {
   fail(
     "AWS credentials are not valid. Re-authenticate (SSO / Isengard / ada), then re-run.\n" +
       "  Check with: aws sts get-caller-identity",
+  );
+}
+
+// 2.5. Full baseline deploy ------------------------------------------------
+// Reverts every template-level change back to baseline: the Phase 3b express
+// CloudFront change (errorResponses), the Phase 2 bucket toggle, frontend
+// assets, etc. `--revert-drift` also reconciles the drift hotswap introduced at
+// the CloudFormation level. This does NOT reliably fix the running Lambda code
+// (hotswap drift is invisible to CFN) — step 4 handles that directly.
+step("Deploying the baseline stack (reverts CloudFront/express + all template drift)…");
+try {
+  run(`npx cdk deploy ${STACK} --revert-drift --require-approval never`, { stdio: "inherit" });
+  console.log("  baseline stack deployed.");
+} catch (e) {
+  fail(
+    "Baseline `cdk deploy` failed. Fix the error above, then re-run.\n" +
+      (e.stdout || "") + (e.stderr || ""),
   );
 }
 
@@ -124,21 +145,29 @@ try {
 // 5. Verify ----------------------------------------------------------------
 step("Verifying the live API reports the baseline version…");
 try {
-  // Give the update a moment to take effect.
-  run("sleep 3");
   const apiUrl = run(
     `aws cloudformation describe-stacks --stack-name ${STACK} ` +
       `--query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text`,
   ).trim();
-  const body = run(`curl -s "${apiUrl}reactions"`);
-  const m = body.match(/"apiVersion":"([^"]*)"/);
-  const version = m ? m[1] : "(not reported)";
+
+  // update-function-code takes a few seconds to propagate. Poll before warning
+  // so we don't cry wolf on what is actually a success.
+  let version = "(not reported)";
+  for (let attempt = 1; attempt <= 6; attempt++) {
+    run("sleep 3");
+    const body = run(`curl -s "${apiUrl}reactions"`);
+    const m = body.match(/"apiVersion":"([^"]*)"/);
+    version = m ? m[1] : "(not reported)";
+    if (version === "v1") break;
+    process.stdout.write(`  …still "${version}" (attempt ${attempt}/6), waiting for propagation…\n`);
+  }
+
   if (version === "v1") {
     console.log("  ✅ live API reports apiVersion \"v1\". Baseline restored.");
   } else {
     console.log(
-      "  ⚠️ live API reports \"" + version + "\" (expected v1). It can take a few seconds to " +
-        "propagate — re-check with:\n     curl -s " + apiUrl + "reactions | grep apiVersion",
+      "  ⚠️ live API still reports \"" + version + "\" after ~18s. Re-check in a moment:\n" +
+        "     curl -s " + apiUrl + "reactions | grep apiVersion",
     );
   }
 } catch (e) {

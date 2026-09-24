@@ -33,28 +33,6 @@ const VALID_MOODS = ["fire", "mind", "love", "think", "rocket"];
 const MAX_MESSAGE = 140;
 const MAX_NAME = 24;
 
-// ┌──────────────────────────────────────────────────────────────────────────┐
-// │ DEMO TOGGLE — PHASE 3a  (HOTSWAP: Lambda code change, VISIBLE on the wall) │
-// │                                                                            │
-// │ This is the only thing that changes between V1 and V2 — pure Lambda code.  │
-// │ Nothing in the CloudFormation template moves. That is exactly the case     │
-// │ hotswap handles: `cdk deploy --hotswap` skips CloudFormation and calls the │
-// │ Lambda UpdateFunctionCode API directly (seconds, no changeset, no CFN      │
-// │ events).                                                                   │
-// │                                                                            │
-// │ VISIBLE PROOF: listReactions() returns this string; the wall shows it as   │
-// │ the "api:" badge in the header. Flip V1 -> V2, hotswap, and the badge      │
-// │ changes live on screen within one poll (~5s). No build step — plain JS.    │
-// │                                                                            │
-// │   cdk deploy SkipTheWait-FeedbackWall --hotswap --require-approval never   │
-// │                                                                            │
-// │ PROS to show:  fast dev loop, no CloudFormation round-trip, instant edit-  │
-// │                to-running-code.                                            │
-// │ CONS to raise: introduces drift (resource no longer matches the deployed   │
-// │                template), no rollback, only supported resource types, and  │
-// │                it is DEVELOPMENT-ONLY — never production.                   │
-// └──────────────────────────────────────────────────────────────────────────┘
-
 // ---- V1 (default) ----------------------------------------------------------
 const API_VERSION = "v1";
 // ----------------------------------------------------------------------------

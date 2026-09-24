@@ -4,20 +4,6 @@ import * as cdk from 'aws-cdk-lib';
 import { CfnGuardValidator } from '@cdklabs/cdk-validator-cfnguard';
 import { FeedbackWallStack } from '../lib/feedback-wall-stack';
 
-/**
- * AWS CDK - "Skip the wait"  ·  DevCon 2026 booth demo.
- *
- * One stack, one app: SkipTheWait-FeedbackWall. All three phases live in it:
- *   Phase 1  slow synth        — analytics is ON by default (Session Insights panel)
- *   Phase 2  fail fast         — the website bucket toggle (built-in + plugin validation)
- *   Phase 3  quick deploys     — --hotswap (Lambda) and --express (CloudFront)
- *
- * Phase 1: `cdk synth SkipTheWait-FeedbackWall` is slow out of the box. Drop
- * analytics to see the fast baseline:
- *   npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=false
- *
- * Everything synthesizes offline. Only Phase 3 actually deploys (own account).
- */
 const app = new cdk.App();
 
 // ┌────────────────────────────────────────────────────────────────────────┐

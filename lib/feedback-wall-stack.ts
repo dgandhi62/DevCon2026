@@ -48,7 +48,7 @@ export class FeedbackWallStack extends cdk.Stack {
     // Phase 1: the Session Insights data is precomputed here at synth time.
     // See constructs/analytics.ts for the (deliberate) duplicated-work bug.
     const analytics = includeAnalytics
-      ? new SessionAnalytics(this, 'Analytics', { table: database.table })
+      ? new SessionAnalytics(this, 'Analytics')
       : undefined;
 
     const website = new FeedbackWebsite(this, 'Website', {

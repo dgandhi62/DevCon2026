@@ -292,7 +292,7 @@
           '<div class="insight-card">' +
           '<div class="insight-top">' +
           '<span class="insight-title">' + escapeHtml(s.title) + "</span>" +
-          '<span class="insight-fp" title="synth-time fingerprint">' + escapeHtml(s.fingerprint || "") + "</span>" +
+          '<span class="insight-fp" title="template bundle fingerprint">' + escapeHtml(s.templatesHash || "") + "</span>" +
           "</div>" +
           '<span class="insight-track">' + escapeHtml(s.track) + "</span>" +
           '<div class="insight-bar"><div class="insight-bar-fill" style="width:' + pct + '%"></div></div>' +
@@ -306,10 +306,10 @@
   function seedInsights() {
     // Local demo-mode fallback so the panel is populated when opened offline.
     return [
-      { id: "keynote", title: "DevCon 2026 Keynote", track: "main", capacity: 4000, fingerprint: "a1b2c3d4" },
-      { id: "cdk-speed", title: "AWS CDK — Skip the wait", track: "builder-tools", capacity: 300, fingerprint: "e5f6a7b8" },
-      { id: "serverless-patterns", title: "Serverless Patterns at Scale", track: "serverless", capacity: 450, fingerprint: "c9d0e1f2" },
-      { id: "genai-builders", title: "GenAI for Builders", track: "ai", capacity: 600, fingerprint: "3a4b5c6d" },
+      { id: "s0", title: "Day 1: Keynote", track: "main", capacity: 4000, templatesHash: "a1b2c3d4" },
+      { id: "s1", title: "Day 1: Skip the Wait", track: "builder-tools", capacity: 300, templatesHash: "a1b2c3d4" },
+      { id: "s2", title: "Day 1: Serverless at Scale", track: "serverless", capacity: 450, templatesHash: "a1b2c3d4" },
+      { id: "s5", title: "Day 1: GenAI for Builders", track: "ai", capacity: 600, templatesHash: "a1b2c3d4" },
     ];
   }
 

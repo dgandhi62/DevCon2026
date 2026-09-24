@@ -256,10 +256,10 @@ section("6. Phase 1 — toggle is on the SLOW (baseline) side");
 
 check("analytics SLOW block is active, FAST block is commented", () => {
   const src = read("lib/constructs/analytics.ts");
-  // SLOW baseline: getFingerprint re-hashes per iteration (active).
-  const slowActive = hasActiveLine(src, /getFingerprint\s*=\s*\(i:\s*number\)\s*=>\s*buildSessionFingerprint/);
-  // FAST fix: baseHash computed once (should be commented in baseline).
-  const fastActive = hasActiveLine(src, /const\s+baseHash\s*=\s*hashConfig/);
+  // SLOW baseline: reportHashFor re-renders the bundle per session (active).
+  const slowActive = hasActiveLine(src, /reportHashFor\s*=\s*\(\)\s*=>\s*hashReportBundle\(renderReportBundle\(\)\)/);
+  // FAST fix: reportHash rendered once (should be commented in baseline).
+  const fastActive = hasActiveLine(src, /const\s+reportHash\s*=\s*hashReportBundle\(renderReportBundle\(\)\)/);
   assert(
     slowActive && !fastActive,
     "Phase 1 toggle is on the FAST side (or unclear). Reset to baseline: " +
@@ -267,10 +267,20 @@ check("analytics SLOW block is active, FAST block is commented", () => {
   );
 });
 
-check("the bottleneck helpers still exist in the file", () => {
+check("the bottleneck (per-session bundle render) is intact", () => {
   const src = read("lib/constructs/analytics.ts");
-  assert(/function buildSessionFingerprint/.test(src), "buildSessionFingerprint removed");
-  assert(/pbkdf2Sync/.test(src), "pbkdf2Sync (the expensive hash) removed");
+  assert(/function renderReportBundle/.test(src), "renderReportBundle removed");
+  assert(/readdirSync\(TEMPLATES_DIR/.test(src), "the template directory read removed");
+  // The template bundle must be sizable, or the synth won't be slow.
+  const fsMod = require("fs");
+  const pathMod = require("path");
+  const dir = pathMod.join(__dirname, "..", "assets", "insight-templates");
+  const files = fsMod.readdirSync(dir).filter((f) => f.endsWith(".hbs"));
+  let bytes = 0;
+  for (const f of files) bytes += fsMod.statSync(pathMod.join(dir, f)).size;
+  assert(files.length >= 200, `only ${files.length} template files — too few for a slow synth`);
+  assert(bytes > 10 * 1024 * 1024, `template bundle is only ${(bytes / 1048576).toFixed(1)}MB — too small`);
+  return `${files.length} files, ${(bytes / 1048576).toFixed(0)}MB`;
 });
 
 check("analytics.config.json has the session catalog", () => {

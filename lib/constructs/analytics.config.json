@@ -1,18 +1,455 @@
 {
-  "comment": "Session catalog consumed by the SessionAnalytics construct. In the Phase 1 demo, the bug is that this file is read + parsed + hashed once PER session inside the loop, instead of once total. The synth-performance skill should point right here.",
-  "namespace": "DevCon2026/FeedbackWall",
+  "comment": "Session catalog for the DevCon 2026 program (multi-day).",
   "sessions": [
-    { "id": "keynote", "title": "DevCon 2026 Keynote", "track": "main", "capacity": 4000 },
-    { "id": "cdk-speed", "title": "AWS CDK — Skip the wait", "track": "builder-tools", "capacity": 300 },
-    { "id": "serverless-patterns", "title": "Serverless Patterns at Scale", "track": "serverless", "capacity": 450 },
-    { "id": "iac-deep-dive", "title": "Infrastructure as Code Deep Dive", "track": "builder-tools", "capacity": 300 },
-    { "id": "observability", "title": "Observability for Distributed Systems", "track": "operations", "capacity": 350 },
-    { "id": "genai-builders", "title": "GenAI for Builders", "track": "ai", "capacity": 600 },
-    { "id": "data-lakes", "title": "Modern Data Lakes", "track": "data", "capacity": 400 },
-    { "id": "security-first", "title": "Security-First Development", "track": "security", "capacity": 380 },
-    { "id": "edge-compute", "title": "Computing at the Edge", "track": "networking", "capacity": 320 },
-    { "id": "cost-optimization", "title": "Cloud Cost Optimization", "track": "operations", "capacity": 340 },
-    { "id": "container-native", "title": "Container-Native Architectures", "track": "containers", "capacity": 420 },
-    { "id": "event-driven", "title": "Event-Driven Everything", "track": "serverless", "capacity": 440 }
+    {
+      "id": "s0",
+      "title": "Day 1: Keynote",
+      "track": "main",
+      "capacity": 200
+    },
+    {
+      "id": "s1",
+      "title": "Day 1: Skip the Wait",
+      "track": "builder-tools",
+      "capacity": 237
+    },
+    {
+      "id": "s2",
+      "title": "Day 1: Serverless at Scale",
+      "track": "serverless",
+      "capacity": 274
+    },
+    {
+      "id": "s3",
+      "title": "Day 1: IaC Deep Dive",
+      "track": "ai",
+      "capacity": 311
+    },
+    {
+      "id": "s4",
+      "title": "Day 1: Observability",
+      "track": "data",
+      "capacity": 348
+    },
+    {
+      "id": "s5",
+      "title": "Day 1: GenAI for Builders",
+      "track": "security",
+      "capacity": 385
+    },
+    {
+      "id": "s6",
+      "title": "Day 1: Data Lakes",
+      "track": "networking",
+      "capacity": 422
+    },
+    {
+      "id": "s7",
+      "title": "Day 1: Security First",
+      "track": "operations",
+      "capacity": 459
+    },
+    {
+      "id": "s8",
+      "title": "Day 1: Edge Compute",
+      "track": "containers",
+      "capacity": 496
+    },
+    {
+      "id": "s9",
+      "title": "Day 1: Cost Optimization",
+      "track": "main",
+      "capacity": 533
+    },
+    {
+      "id": "s10",
+      "title": "Day 1: Container Native",
+      "track": "builder-tools",
+      "capacity": 570
+    },
+    {
+      "id": "s11",
+      "title": "Day 1: Event Driven",
+      "track": "serverless",
+      "capacity": 607
+    },
+    {
+      "id": "s12",
+      "title": "Day 1: Platform Engineering",
+      "track": "ai",
+      "capacity": 644
+    },
+    {
+      "id": "s13",
+      "title": "Day 1: Testing Strategies",
+      "track": "data",
+      "capacity": 681
+    },
+    {
+      "id": "s14",
+      "title": "Day 1: CI/CD Pipelines",
+      "track": "security",
+      "capacity": 718
+    },
+    {
+      "id": "s15",
+      "title": "Day 1: Incident Response",
+      "track": "networking",
+      "capacity": 755
+    },
+    {
+      "id": "s16",
+      "title": "Day 1: Cell-Based Architecture",
+      "track": "operations",
+      "capacity": 792
+    },
+    {
+      "id": "s17",
+      "title": "Day 1: Graph Databases",
+      "track": "containers",
+      "capacity": 229
+    },
+    {
+      "id": "s18",
+      "title": "Day 1: Streaming Analytics",
+      "track": "main",
+      "capacity": 266
+    },
+    {
+      "id": "s19",
+      "title": "Day 1: Zero Trust",
+      "track": "builder-tools",
+      "capacity": 303
+    },
+    {
+      "id": "s20",
+      "title": "Day 1: API Design",
+      "track": "serverless",
+      "capacity": 340
+    },
+    {
+      "id": "s21",
+      "title": "Day 1: Chaos Engineering",
+      "track": "ai",
+      "capacity": 377
+    },
+    {
+      "id": "s22",
+      "title": "Day 1: FinOps",
+      "track": "data",
+      "capacity": 414
+    },
+    {
+      "id": "s23",
+      "title": "Day 1: Multi-Region",
+      "track": "security",
+      "capacity": 451
+    },
+    {
+      "id": "s24",
+      "title": "Day 1: Caching Strategies",
+      "track": "networking",
+      "capacity": 488
+    },
+    {
+      "id": "s25",
+      "title": "Day 2: Keynote",
+      "track": "operations",
+      "capacity": 525
+    },
+    {
+      "id": "s26",
+      "title": "Day 2: Skip the Wait",
+      "track": "containers",
+      "capacity": 562
+    },
+    {
+      "id": "s27",
+      "title": "Day 2: Serverless at Scale",
+      "track": "main",
+      "capacity": 599
+    },
+    {
+      "id": "s28",
+      "title": "Day 2: IaC Deep Dive",
+      "track": "builder-tools",
+      "capacity": 636
+    },
+    {
+      "id": "s29",
+      "title": "Day 2: Observability",
+      "track": "serverless",
+      "capacity": 673
+    },
+    {
+      "id": "s30",
+      "title": "Day 2: GenAI for Builders",
+      "track": "ai",
+      "capacity": 710
+    },
+    {
+      "id": "s31",
+      "title": "Day 2: Data Lakes",
+      "track": "data",
+      "capacity": 747
+    },
+    {
+      "id": "s32",
+      "title": "Day 2: Security First",
+      "track": "security",
+      "capacity": 784
+    },
+    {
+      "id": "s33",
+      "title": "Day 2: Edge Compute",
+      "track": "networking",
+      "capacity": 221
+    },
+    {
+      "id": "s34",
+      "title": "Day 2: Cost Optimization",
+      "track": "operations",
+      "capacity": 258
+    },
+    {
+      "id": "s35",
+      "title": "Day 2: Container Native",
+      "track": "containers",
+      "capacity": 295
+    },
+    {
+      "id": "s36",
+      "title": "Day 2: Event Driven",
+      "track": "main",
+      "capacity": 332
+    },
+    {
+      "id": "s37",
+      "title": "Day 2: Platform Engineering",
+      "track": "builder-tools",
+      "capacity": 369
+    },
+    {
+      "id": "s38",
+      "title": "Day 2: Testing Strategies",
+      "track": "serverless",
+      "capacity": 406
+    },
+    {
+      "id": "s39",
+      "title": "Day 2: CI/CD Pipelines",
+      "track": "ai",
+      "capacity": 443
+    },
+    {
+      "id": "s40",
+      "title": "Day 2: Incident Response",
+      "track": "data",
+      "capacity": 480
+    },
+    {
+      "id": "s41",
+      "title": "Day 2: Cell-Based Architecture",
+      "track": "security",
+      "capacity": 517
+    },
+    {
+      "id": "s42",
+      "title": "Day 2: Graph Databases",
+      "track": "networking",
+      "capacity": 554
+    },
+    {
+      "id": "s43",
+      "title": "Day 2: Streaming Analytics",
+      "track": "operations",
+      "capacity": 591
+    },
+    {
+      "id": "s44",
+      "title": "Day 2: Zero Trust",
+      "track": "containers",
+      "capacity": 628
+    },
+    {
+      "id": "s45",
+      "title": "Day 2: API Design",
+      "track": "main",
+      "capacity": 665
+    },
+    {
+      "id": "s46",
+      "title": "Day 2: Chaos Engineering",
+      "track": "builder-tools",
+      "capacity": 702
+    },
+    {
+      "id": "s47",
+      "title": "Day 2: FinOps",
+      "track": "serverless",
+      "capacity": 739
+    },
+    {
+      "id": "s48",
+      "title": "Day 2: Multi-Region",
+      "track": "ai",
+      "capacity": 776
+    },
+    {
+      "id": "s49",
+      "title": "Day 2: Caching Strategies",
+      "track": "data",
+      "capacity": 213
+    },
+    {
+      "id": "s50",
+      "title": "Day 3: Keynote",
+      "track": "security",
+      "capacity": 250
+    },
+    {
+      "id": "s51",
+      "title": "Day 3: Skip the Wait",
+      "track": "networking",
+      "capacity": 287
+    },
+    {
+      "id": "s52",
+      "title": "Day 3: Serverless at Scale",
+      "track": "operations",
+      "capacity": 324
+    },
+    {
+      "id": "s53",
+      "title": "Day 3: IaC Deep Dive",
+      "track": "containers",
+      "capacity": 361
+    },
+    {
+      "id": "s54",
+      "title": "Day 3: Observability",
+      "track": "main",
+      "capacity": 398
+    },
+    {
+      "id": "s55",
+      "title": "Day 3: GenAI for Builders",
+      "track": "builder-tools",
+      "capacity": 435
+    },
+    {
+      "id": "s56",
+      "title": "Day 3: Data Lakes",
+      "track": "serverless",
+      "capacity": 472
+    },
+    {
+      "id": "s57",
+      "title": "Day 3: Security First",
+      "track": "ai",
+      "capacity": 509
+    },
+    {
+      "id": "s58",
+      "title": "Day 3: Edge Compute",
+      "track": "data",
+      "capacity": 546
+    },
+    {
+      "id": "s59",
+      "title": "Day 3: Cost Optimization",
+      "track": "security",
+      "capacity": 583
+    },
+    {
+      "id": "s60",
+      "title": "Day 3: Container Native",
+      "track": "networking",
+      "capacity": 620
+    },
+    {
+      "id": "s61",
+      "title": "Day 3: Event Driven",
+      "track": "operations",
+      "capacity": 657
+    },
+    {
+      "id": "s62",
+      "title": "Day 3: Platform Engineering",
+      "track": "containers",
+      "capacity": 694
+    },
+    {
+      "id": "s63",
+      "title": "Day 3: Testing Strategies",
+      "track": "main",
+      "capacity": 731
+    },
+    {
+      "id": "s64",
+      "title": "Day 3: CI/CD Pipelines",
+      "track": "builder-tools",
+      "capacity": 768
+    },
+    {
+      "id": "s65",
+      "title": "Day 3: Incident Response",
+      "track": "serverless",
+      "capacity": 205
+    },
+    {
+      "id": "s66",
+      "title": "Day 3: Cell-Based Architecture",
+      "track": "ai",
+      "capacity": 242
+    },
+    {
+      "id": "s67",
+      "title": "Day 3: Graph Databases",
+      "track": "data",
+      "capacity": 279
+    },
+    {
+      "id": "s68",
+      "title": "Day 3: Streaming Analytics",
+      "track": "security",
+      "capacity": 316
+    },
+    {
+      "id": "s69",
+      "title": "Day 3: Zero Trust",
+      "track": "networking",
+      "capacity": 353
+    },
+    {
+      "id": "s70",
+      "title": "Day 3: API Design",
+      "track": "operations",
+      "capacity": 390
+    },
+    {
+      "id": "s71",
+      "title": "Day 3: Chaos Engineering",
+      "track": "containers",
+      "capacity": 427
+    },
+    {
+      "id": "s72",
+      "title": "Day 3: FinOps",
+      "track": "main",
+      "capacity": 464
+    },
+    {
+      "id": "s73",
+      "title": "Day 3: Multi-Region",
+      "track": "builder-tools",
+      "capacity": 501
+    },
+    {
+      "id": "s74",
+      "title": "Day 3: Caching Strategies",
+      "track": "serverless",
+      "capacity": 538
+    }
   ]
 }

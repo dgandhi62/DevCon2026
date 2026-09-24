@@ -591,6 +591,13 @@ body {
   animation: shimmer 1.3s infinite;
 }
 
+/* The HTML `hidden` attribute must always win. Without this, elements that set
+   an explicit `display` (e.g. .skeleton { display: grid }) keep rendering even
+   when hidden=true is set in JS — which left the loading skeleton on screen. */
+[hidden] {
+  display: none !important;
+}
+
 @keyframes shimmer {
   from { background-position: 200% 0; }
   to { background-position: -200% 0; }

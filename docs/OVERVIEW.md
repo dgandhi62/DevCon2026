@@ -168,9 +168,9 @@ analytics construct (Phase 1's slow-synth bottleneck) is **ON by default**, so
 
 ```
 bin/
-  app.ts                     CDK app entry. Instantiates the FeedbackWall stack
-                             and registers the synth-time validation plugin
-                             (Validations.of(app).addPlugins(...)).
+  app.ts                     CDK app entry. Instantiates the FeedbackWall stack.
+                             Holds the Phase 2 policy-plugin toggle
+                             (Validations.of(app).addPlugins(...)) — OFF by default.
 
 lib/
   feedback-wall-stack.ts     Composes the real app from the constructs below.
@@ -275,6 +275,10 @@ demonstrates **two validation layers**.
   ```
 
 - **State C (locked, baseline):** BLOCK_ALL, no public read — passes both layers.
+
+The **policy plugin is OFF by default** (baseline). You turn it ON in `bin/app.ts`
+to demonstrate what it adds: with the bucket public (state B) and the plugin off,
+synth passes; register the plugin and the same bucket fails on CT.S3.PR.1.
 
 Two layers, both on your laptop, both before a deploy: CDK built-in catches the
 structural mistake; the policy plugin catches the security policy CDK can't know

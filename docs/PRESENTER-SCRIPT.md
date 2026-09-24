@@ -21,7 +21,7 @@ the other. You never write code at the table.
 | Phase | File with the toggle | Flip | What the flip proves |
 | --- | --- | --- | --- |
 | 1 | `lib/constructs/analytics.ts` | SLOW ↔ FAST | the skill found the real bottleneck |
-| 2 | `lib/constructs/website.ts` (site bucket) | C locked → A built-in → B plugin | two synth-time validation layers catch a public bucket |
+| 2 | `lib/constructs/website.ts` (bucket) + `bin/app.ts` (plugin OFF→ON) | A built-in throws → B public+plugin ON fails | two synth-time validation layers catch a public bucket |
 | 3a | `lambda/reactions/index.js` | V1 ↔ V2 (`API_VERSION`) | code-only → hotswap used; **badge flips live on the wall** |
 | 3b | `lib/constructs/website.ts` (CloudFront) | V1 ↔ V2 (`errorResponses`) | CFN CloudFront change → express skips the stabilization wait |
 
@@ -110,12 +110,13 @@ time npx cdk synth SkipTheWait-FeedbackWall > /dev/null
 ## Phase 2 — "Fail fast, not after a 3-minute deploy" (2 min)
 
 The misconfiguration lives in the **real app's website bucket** — no separate
-stack. It's a three-state toggle on the same bucket that shows **two validation
-layers**: CDK's own built-in synth validation, then the policy plugin. Baseline
-is **C (locked)**.
+stack. It shows **two validation layers**: CDK's own built-in synth validation
+(always on), then the policy plugin (off by default — you turn it on to prove
+what it adds). Baseline: bucket **C (locked)**, plugin **OFF**.
 
-**File to open:** `lib/constructs/website.ts` — the `DEMO TOGGLE — PHASE 2`
-banner (states A / B / C).
+**Files to open:** `lib/constructs/website.ts` (the `DEMO TOGGLE — PHASE 2`
+bucket states A / B / C) and `bin/app.ts` (the `DEMO TOGGLE — PHASE 2` plugin
+on/off block).
 
 **Setup line:**
 
@@ -142,15 +143,29 @@ public access through 'blockPublicAccess' property.
 > "That's CDK's built-in validation — it caught an inconsistent config before
 > any plugin, before any deploy. Free, on my laptop, instantly."
 
-### Layer 2 — the policy validation plugin (state B)
+### Layer 2 — the policy validation plugin (state B + turn the plugin ON)
 
 Now "fix" it the wrong way: comment state A, uncomment **state B** — which ALSO
 opens `blockPublicAccess`. Now CDK's built-in check is satisfied... but the
-bucket is genuinely public. Then:
+bucket is genuinely public. Synth it and note it **passes** — the plugin is off
+by default, so nothing catches the security problem:
 
 ```bash
 npm run build
-npx cdk synth SkipTheWait-FeedbackWall     # PASSES built-in, FAILS the plugin
+npx cdk synth SkipTheWait-FeedbackWall     # PASSES — a deploy would ship a public bucket
+```
+
+> "CDK's built-in validation is happy now — the config is consistent. But this
+> bucket is wide open, and a plain deploy would ship it. I need a security
+> policy check. Let me turn one on."
+
+**Now register the guard.** In `bin/app.ts`, find the `DEMO TOGGLE — PHASE 2`
+banner and uncomment the **PLUGIN ON** block (`Validations.of(app).addPlugins(
+new CfnGuardValidator(...))`). Re-synth the same app:
+
+```bash
+npm run build
+npx cdk synth SkipTheWait-FeedbackWall     # now FAILS on the policy plugin
 ```
 
 The CFN-Guard policy plugin fails synth with the rule and the construct path:
@@ -172,9 +187,12 @@ ERROR [CT.S3.PR.1]: Require an Amazon S3 bucket to have block public access sett
 
 ### The real fix (state C)
 
-Comment state B, uncomment **state C** (`BLOCK_ALL`, no public read) — the
-baseline. Then `npm run build && npx cdk synth SkipTheWait-FeedbackWall` passes
-both layers.
+Lock the bucket back down: comment state B, uncomment **state C** (`BLOCK_ALL`,
+no public read). Leave the plugin ON — now it passes, proving the fix is good.
+Then `npm run build && npx cdk synth SkipTheWait-FeedbackWall` passes both layers.
+
+> (Note: `npm run reset` returns to baseline — bucket **C locked** AND plugin
+> **OFF**. So the plugin you turned on gets switched back off on reset.)
 
 > **Under the hood:** the plugin is `@cdklabs/cdk-validator-cfnguard`, registered
 > via `Validations.of(app).addPlugins(...)` in `bin/app.ts`, scoped to the single
@@ -189,7 +207,8 @@ both layers.
 > CFN-Guard rules the same way — a pluggable, shift-left security gate that runs
 > before anything leaves your laptop.
 
-> **Reset:** baseline is state **C**. `npm run reset` restores it.
+> **Reset:** baseline is bucket state **C (locked)** + plugin **OFF**.
+> `npm run reset` restores both.
 
 ---
 

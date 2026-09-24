@@ -11,26 +11,6 @@ import { Construct } from 'constructs';
  * finished HTML and derives a short content hash used as a cache-busting stamp,
  * exposed as `insights`. The website construct injects that payload into the
  * frontend, so the panel is a real, visible feature.
- *
- * It works. It is also slow to synthesize — because of a very ordinary mistake:
- *
- *   THE BUG (see the SLOW block below):
- *     The report bundle is rendered by reading EVERY template file in
- *     assets/insight-templates and assembling them — once PER SESSION, inside
- *     the loop. The templates are the same for every session, so that whole
- *     read-all-files-and-assemble pass is identical each time. With N sessions
- *     it runs N times instead of once.
- *
- *   Loading templates/partials from disk at synth is completely normal. The
- *   mistake is doing it per item instead of once and reusing the result.
- *
- * In a CPU profile of `cdk synth` this dominates the "Construction" phase:
- * renderReportBundle -> fs.readdirSync + fs.readFileSync over the whole
- * directory + string assembly, called N times with identical input. The
- * cdk-synth-performance skill should name this function and these lines.
- *
- *   THE FIX: render the bundle ONCE before the loop and reuse it (the FAST
- *   block below). Same panel, fast synth.
  */
 /** One session's insights, as rendered by the wall's Session Insights panel. */
 export interface SessionInsight {
@@ -55,15 +35,6 @@ export class SessionAnalytics extends Construct {
 
     const sessions = readCatalog().sessions;
     const insights: SessionInsight[] = [];
-
-    // ┌──────────────────────────────────────────────────────────────────┐
-    // │ DEMO TOGGLE — PHASE 1  (slow synth ↔ fast synth)                   │
-    // │                                                                    │
-    // │ Comment ONE block, uncomment the OTHER. Do not edit the loop body. │
-    // │  • SLOW block = render the whole template bundle on EVERY session   │
-    // │                 (the duplicated-work bug).                          │
-    // │  • FAST block = render the bundle ONCE, then reuse for every session.│
-    // └──────────────────────────────────────────────────────────────────┘
 
     // ---- SLOW (default): re-render the report bundle per session --------
     const reportHashFor = () => hashReportBundle(renderReportBundle());

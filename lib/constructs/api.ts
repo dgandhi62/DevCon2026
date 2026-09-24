@@ -9,7 +9,6 @@ import { Construct } from 'constructs';
 /**
  * The reactions API: a Node.js Lambda behind a REST API Gateway.
  *
- * >>> This is the Phase 3 HOTSWAP target. <<<
  * The handler is plain JS in lambda/reactions (no bundling), so editing it and
  * running `cdk deploy --hotswap` updates the function through the Lambda
  * UpdateFunctionCode API directly — no CloudFormation cycle, seconds not minutes.

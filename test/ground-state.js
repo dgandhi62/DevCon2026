@@ -228,10 +228,11 @@ check("all three Phase 2 states exist in website.ts (A built-in, B plugin, C loc
   assert(/C\) LOCKED/.test(site), "state C (locked baseline) block missing");
 });
 
-check("baseline app passes BOTH validation layers (built-in + plugin)", () => {
-  // With the bucket LOCKED and the plugin ON, synth must succeed.
+check("baseline app synths clean (bucket LOCKED, plugin OFF)", () => {
+  // Baseline: the site bucket is locked (state C) and the policy plugin is OFF
+  // by default, so synth must succeed with no validation findings.
   const { code, out } = synth("SkipTheWait-FeedbackWall");
-  assert(code === 0, `expected baseline to pass validation, got exit ${code}`);
+  assert(code === 0, `expected baseline to synth clean, got exit ${code}`);
   assert(!out.includes("CT.S3.PR.1"), "baseline unexpectedly tripped the public-access rule");
 });
 
@@ -334,16 +335,23 @@ check("analytics is ON by default in the base app", () => {
 });
 
 // ------------------------------------------------------------
-section("7. Phase 2 — the policy plugin (Layer 2) is registered");
+section("7. Phase 2 — the policy plugin (Layer 2) is OFF by default");
 
-check("the CFN-Guard plugin toggle is ON (registered) — baseline", () => {
+check("the CFN-Guard plugin toggle is OFF (not registered) — baseline", () => {
   const src = read("bin/app.ts");
-  const pluginOn = hasActiveLine(src, /addPlugins\(/) ||
-    hasActiveLine(src, /new CfnGuardValidator\(/);
+  const pluginOn =
+    hasActiveLine(src, /addPlugins\(/) || hasActiveLine(src, /new CfnGuardValidator\(/);
   assert(
-    pluginOn,
-    "Phase 2 plugin toggle is OFF (CfnGuardValidator commented out). Reset bin/app.ts to baseline.",
+    !pluginOn,
+    "Phase 2 plugin toggle is ON (CfnGuardValidator active). Baseline is OFF — comment the " +
+      "addPlugins block in bin/app.ts.",
   );
+});
+
+check("the plugin toggle block still exists (commented) so it can be turned ON", () => {
+  const src = read("bin/app.ts");
+  assert(/CfnGuardValidator/.test(src), "the CfnGuardValidator toggle block is gone from bin/app.ts");
+  assert(/s3-block-public-access\.guard/.test(src), "the scoped rule reference is gone");
 });
 
 check("the scoped public-access guard rule exists", () => {
@@ -410,22 +418,6 @@ check("Phase 3b express toggle is on V1 (baseline, no errorResponses)", () => {
   assert(
     !v2Active,
     "express toggle is on V2 (errorResponses live). Reset to V1 baseline.",
-  );
-});
-
-// ------------------------------------------------------------
-section("9. Validation plugin is wired in bin/app.ts");
-
-check("bin/app.ts registers the CfnGuard validator", () => {
-  const src = read("bin/app.ts");
-  assert(/CfnGuardValidator/.test(src), "CfnGuardValidator import/use missing");
-  assert(
-    /Validations\.of\(app\)\.addPlugins/.test(src),
-    "validation should be registered via Validations.of(app).addPlugins(...)",
-  );
-  assert(
-    /s3-block-public-access\.guard/.test(src),
-    "the scoped public-access rule is no longer referenced",
   );
 });
 

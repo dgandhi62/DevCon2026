@@ -11,7 +11,6 @@ import { SessionInsight } from './analytics';
  * The static feedback-wall frontend: an S3 bucket (private) served through
  * CloudFront, populated by a BucketDeployment.
  *
- * >>> This is the Phase 3 EXPRESS-MODE target. <<<
  * Broader infrastructure changes here (the CloudFront distribution, the bucket,
  * the deployment) go through CloudFormation. `cdk deploy --express` reports the
  * stack complete as soon as CloudFormation applies each resource's config,
@@ -45,28 +44,6 @@ export class FeedbackWebsite extends Construct {
   constructor(scope: Construct, id: string, props: FeedbackWebsiteProps) {
     super(scope, id);
 
-    // ┌──────────────────────────────────────────────────────────────────┐
-    // │ DEMO TOGGLE — PHASE 2  (fail fast: two layers of synth validation) │
-    // │                                                                    │
-    // │ "I want to serve files straight from the site bucket, so I make it │
-    // │  public." Three states of the SAME website bucket, in order:       │
-    // │                                                                    │
-    // │  A) BUILT-IN  — publicReadAccess:true, blockPublicAccess left at    │
-    // │     BLOCK_ALL. CDK's OWN synth validation throws immediately:       │
-    // │     "Cannot use 'publicReadAccess' ... without allowing bucket-     │
-    // │     level public access through 'blockPublicAccess'." No plugin,    │
-    // │     no deploy — CDK itself catches the inconsistency.               │
-    // │                                                                    │
-    // │  B) PLUGIN    — you "fix" it by ALSO opening blockPublicAccess.     │
-    // │     CDK is now happy... but the bucket is genuinely public. The     │
-    // │     CFN-Guard policy plugin fails synth on CT.S3.PR.1 with the      │
-    // │     construct path. Caught on your laptop, before deploy.           │
-    // │                                                                    │
-    // │  C) LOCKED (default) — BLOCK_ALL, no public read. Both pass.        │
-    // │                                                                    │
-    // │ Uncomment ONE block. Baseline = C.                                  │
-    // └──────────────────────────────────────────────────────────────────┘
-
     // ---- A) BUILT-IN validation catches it (CDK throws at synth) --------
     // this.bucket = new s3.Bucket(this, 'SiteBucket', {
     //   publicReadAccess: true, // blockPublicAccess stays BLOCK_ALL -> CDK rejects
@@ -97,25 +74,6 @@ export class FeedbackWebsite extends Construct {
       removalPolicy: cdk.RemovalPolicy.DESTROY,
       autoDeleteObjects: true,
     });
-
-    // ┌──────────────────────────────────────────────────────────────────┐
-    // │ DEMO TOGGLE — PHASE 3b  (EXPRESS MODE: broader infra change)       │
-    // │                                                                    │
-    // │ WHY THIS PROVES EXPRESS: this changes the CloudFront DISTRIBUTION   │
-    // │ (adds error responses). That is a CloudFormation change — hotswap   │
-    // │ CANNOT do it. And CloudFront is the canonical slow-to-stabilize     │
-    // │ resource: a normal deploy makes you wait for it to re-propagate.    │
-    // │ With --express, CloudFormation reports the update complete as soon  │
-    // │ as the config is applied, skipping that stabilization wait — so the │
-    // │ SAME change returns far faster. The speed delta IS the proof.       │
-    // │                                                                    │
-    // │ Comment V1, uncomment V2, then:                                     │
-    // │   npm run build                                                     │
-    // │   cdk deploy SkipTheWait-FeedbackWall --express --require-approval never │
-    // │ (To feel the contrast, first deploy V2 WITHOUT --express and time   │
-    // │  it, then revert and redeploy WITH --express.)                      │
-    // │ V2 adds SPA-style error responses (404/403 -> index.html).         │
-    // └──────────────────────────────────────────────────────────────────┘
 
     // ---- V1 (default) ---------------------------------------------------
     this.distribution = new cloudfront.Distribution(this, 'Distribution', {

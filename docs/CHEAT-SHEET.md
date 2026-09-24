@@ -31,11 +31,13 @@ instantiate constructs, duplicated work, heavy bundling.
 
 ## synth → "will this even deploy?"
 
-**Synth-time validation** (`@aws/cloudformation-validate` / CFN-Guard plugin).
+**Synth-time validation** — two layers: CDK's **built-in** validation (always
+runs; catches structural/config mistakes) + a **policy plugin**
+(`@cdklabs/cdk-validator-cfnguard`) for security rules.
 
-Runs automatically right after synth. Checks the generated template against a
-rule set. A violation **fails synth on your laptop** and prints the rule +
-construct path + a suggested fix. You never waste a deploy on a misconfig.
+Both run right after synth. A violation **fails synth on your laptop** and
+prints the rule + construct path + a suggested fix. You never waste a deploy on
+a misconfig.
 
 ```bash
 cdk synth        # validation runs; failing rules stop you here

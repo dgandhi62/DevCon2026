@@ -155,12 +155,12 @@ Three CloudFormation stacks, all synthesizable offline (no AWS account needed to
 
 | Stack | What it is | Role in the demo |
 | --- | --- | --- |
-| `SkipTheWait-FeedbackWall` | The real, working app | The thing on screen; the deploy target for Phase 3 |
-| `SkipTheWait-Phase2-Broken` | A public S3 bucket | Phase 2 — synth-time validation FAILS on it when the guard is on |
+| `SkipTheWait-FeedbackWall` | The real, working app | The one stack — all three phases live in it; the deploy target for Phase 3 |
 
-The `FeedbackWall` stack has an opt-in `includeAnalytics` flag (a CDK context
-value) that adds the slow analytics construct for Phase 1. Off by default so the
-everyday app synthesizes fast.
+There's only one stack now — Phases 1, 2, and 3 all happen inside it. The
+analytics construct (Phase 1's slow-synth bottleneck) is **ON by default**, so
+`cdk synth SkipTheWait-FeedbackWall` is slow out of the box. Pass
+`-c includeAnalytics=false` to drop it and see the fast baseline.
 
 ---
 
@@ -168,30 +168,32 @@ everyday app synthesizes fast.
 
 ```
 bin/
-  app.ts                     CDK app entry. Instantiates the 3 stacks and
-                             registers the synth-time validation plugin
+  app.ts                     CDK app entry. Instantiates the FeedbackWall stack
+                             and registers the synth-time validation plugin
                              (Validations.of(app).addPlugins(...)).
 
 lib/
   feedback-wall-stack.ts     Composes the real app from the constructs below.
-                             Holds the includeAnalytics toggle for Phase 1.
-  phase2-broken-stack.ts     Phase 2: an S3 bucket with public access turned on
-                             (always broken; the guard in bin/app.ts is toggled).
+                             Analytics is ON by default (Phase 1).
 
   constructs/
     database.ts              DynamoDB reactions table (on-demand billing).
-    api.ts                   Lambda + API Gateway.        ← Phase 3 HOTSWAP target
-    website.ts               S3 + CloudFront + BucketDeployment,
-                             injects config.js with the API URL.
-                                                          ← Phase 3 EXPRESS target
-    analytics.ts             SessionAnalytics: a CloudWatch dashboard built in a
-                             loop. Deliberately slow.     ← Phase 1 bottleneck
-    analytics.config.json    Session catalog the analytics construct reads. The
-                             Phase 1 bug re-reads + re-hashes this every loop.
+    api.ts                   Lambda + API Gateway.        ← Phase 3a HOTSWAP target
+    website.ts               S3 + CloudFront + BucketDeployment, injects config.js.
+                             Holds the Phase 2 site-bucket validation toggle
+                             AND the Phase 3b EXPRESS (CloudFront) toggle.
+    analytics.ts             SessionAnalytics: renders the insight-report bundle
+                             per session. Deliberately slow.  ← Phase 1 bottleneck
+    analytics.config.json    Session catalog (the 3-day program) the construct reads.
+
+assets/
+  insight-templates/         ~600 report-template files. The Phase 1 bug re-reads
+                             and re-renders this whole bundle once per session.
 
 lambda/
   reactions/index.js         The API handler. Plain JS (no build step) so a code
-                             edit can be hotswapped instantly.
+                             edit can be hotswapped instantly. Holds the Phase 3a
+                             API_VERSION toggle.
 
 frontend/
   index.html                 The wall UI markup.
@@ -222,53 +224,61 @@ docs/
 
 **File:** `lib/constructs/analytics.ts`
 
-The analytics construct builds one row of CloudWatch widgets per conference
-session. It works — but it's needlessly slow to synth, and the slowness is a
+The analytics construct powers the Session Insights panel (the second tab on the
+wall). It works — but it's needlessly slow to synth, and the slowness is a
 **duplicated-work** bug (not cross-stack refs, not sheer resource count):
 
-- For **every** session, it re-reads `analytics.config.json` from disk, re-parses
-  it, and re-computes an expensive PBKDF2 hash over the **entire file**. The
-  input never changes, so that work should happen **once**, not once per session.
+- For **every** session, it calls `renderReportBundle()`, which reads and
+  assembles **every file** in `assets/insight-templates/` (~600 files). The
+  bundle never changes between sessions, so that whole read-and-render pass
+  should happen **once**, not once per session.
 
 In a CPU profile this shows up as Construction-phase time dominated by one
-user-code function (`hashConfig` / `buildSessionFingerprint`), called N times
-with identical input. The **cdk-synth-performance skill** captures the profile
-and points right at it.
+user-code function (`renderReportBundle` → `fs.readdirSync` / `fs.readFileSync`),
+called N times with identical input. The **cdk-synth-performance skill** captures
+the profile and points right at it.
 
-**The fix:** hoist the read + parse + hash out of the loop (compute once, reuse).
-Synth time drops immediately. Turn the slow path on with:
+**The fix:** hoist the render out of the loop (render once, reuse). Synth time
+drops immediately. Analytics is on by default, so just:
 
 ```bash
-cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true
+cdk synth SkipTheWait-FeedbackWall
 ```
 
-Measured contrast: fast synth ~3.4s vs slow ~5.6s (tunable via the construct's
-`hashRounds`).
+Measured contrast: slow ~15-18s vs fast baseline ~3-4s
+(`-c includeAnalytics=false` drops the panel entirely).
 
 ### Phase 2 — "Fail fast, not after a 3-minute deploy" (synth)
 
-**Files:** `lib/phase2-broken-stack.ts` (always broken) + the guard toggle in
-`bin/app.ts`.
+**File:** `lib/constructs/website.ts` — the site bucket's three-state toggle. No
+separate stack; the misconfiguration is in the real app's website bucket, and it
+demonstrates **two validation layers**.
 
-The broken stack creates an S3 bucket with Block Public Access turned **off** and
-public read granted. It synthesizes into perfectly valid CloudFormation — which
-is the whole point: a plain deploy would have accepted it. The demo toggles the
-**validation guard** in `bin/app.ts`, not the bucket:
+- **State A (built-in):** `publicReadAccess: true` with `blockPublicAccess` left
+  at BLOCK_ALL. **CDK's own synth validation throws** — an inconsistent config,
+  caught before any plugin:
 
-- **Guard OFF** → `cdk synth SkipTheWait-Phase2-Broken` succeeds — the bad bucket
-  slips through, just like a plain deploy would ship it. The "before".
-- **Guard ON** → the same stack fails synth immediately:
+  ```
+  Cannot use 'publicReadAccess' property on a bucket without allowing bucket-level
+  public access through 'blockPublicAccess' property.
+  ```
 
-```
-ERROR [CT.S3.PR.1]: Require an Amazon S3 bucket to have block public access settings configured
-   SkipTheWait-Phase2-Broken/PublicAssets/Resource (PublicAssetsACF28B1B)
-   Suggested fix: The parameters 'BlockPublicAcls', 'BlockPublicPolicy', 'IgnorePublicAcls',
-   'RestrictPublicBuckets' must be set to true …
-```
+- **State B (plugin):** "fixed" by also opening `blockPublicAccess`. CDK's
+  built-in check now passes, but the bucket is genuinely public — so the
+  **CFN-Guard policy plugin fails synth** with the rule + construct path:
 
-You get the failing rule, the **construct path**, and a fix — on your laptop, in
-one second. Same bucket, only the guard moved — so the guard is provably what
-caught it.
+  ```
+  ERROR [CT.S3.PR.1]: Require an Amazon S3 bucket to have block public access settings configured
+     SkipTheWait-FeedbackWall/Website/SiteBucket/Resource (...) aws-cdk-lib.aws_s3.CfnBucket
+     Suggested fix: The parameters 'BlockPublicAcls', 'BlockPublicPolicy', 'IgnorePublicAcls',
+     'RestrictPublicBuckets' must be set to true …
+  ```
+
+- **State C (locked, baseline):** BLOCK_ALL, no public read — passes both layers.
+
+Two layers, both on your laptop, both before a deploy: CDK built-in catches the
+structural mistake; the policy plugin catches the security policy CDK can't know
+about.
 
 ### Phase 3 — "Quick deployments" (deploy)
 
@@ -324,13 +334,15 @@ swap the plugin registration out and the phase behaves the same.
 npm install
 npm run build        # compile TS -> JS (before every synth session)
 
-# Phase 1 — slow synth + skill investigation
-cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true
+# Phase 1 — slow synth + skill investigation (analytics ON by default)
+cdk synth SkipTheWait-FeedbackWall
 NODE_OPTIONS="--cpu-prof --cpu-prof-dir=./profile" \
-  cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
+  cdk synth SkipTheWait-FeedbackWall > /dev/null
+# fast baseline for contrast:  cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=false
 
-# Phase 2 — fail fast (toggle the guard in bin/app.ts)
-cdk synth SkipTheWait-Phase2-Broken     # guard ON: FAILS CT.S3.PR.1 + path; guard OFF: passes
+# Phase 2 — fail fast (toggle the site bucket in lib/constructs/website.ts)
+#   state A -> CDK built-in throws;  state B -> plugin fails CT.S3.PR.1;  state C -> passes both
+cdk synth SkipTheWait-FeedbackWall
 
 # See the wall with no AWS account (demo mode)
 open frontend/index.html

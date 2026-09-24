@@ -61,8 +61,21 @@ function assert(cond, message) {
 /**
  * Run a cdk synth for one stack. Returns { code, out } where `out` is combined
  * stdout+stderr. Never throws on non-zero exit — we assert on the code.
+ *
+ * MEMOIZED: the base app synth is deliberately slow (~15-20s). Several checks
+ * inspect the same synth output, so we run each unique (stack + args) synth
+ * once and reuse the result — otherwise the suite would take minutes.
  */
+const synthCache = new Map();
 function synth(stack, extraArgs = []) {
+  const key = stack + " " + extraArgs.join(" ");
+  if (synthCache.has(key)) return synthCache.get(key);
+  const result = runSynth(stack, extraArgs);
+  synthCache.set(key, result);
+  return result;
+}
+
+function runSynth(stack, extraArgs = []) {
   const args = ["synth", stack, "--no-color", ...extraArgs];
   try {
     const out = execSync(`"${cdkBin}" ${args.join(" ")}`, {
@@ -120,7 +133,6 @@ section("1. Project files present");
 const REQUIRED_FILES = [
   "bin/app.ts",
   "lib/feedback-wall-stack.ts",
-  "lib/phase2-broken-stack.ts",
   "lib/constructs/database.ts",
   "lib/constructs/api.ts",
   "lib/constructs/website.ts",
@@ -195,31 +207,32 @@ check("app template contains the core resources", () => {
 });
 
 // ------------------------------------------------------------
-section("4. Phase 2 — validation behaves as scripted");
+section("4. Phase 2 — website-bucket validation toggle (baseline = LOCKED)");
 
-check("BROKEN stack FAILS synth (exit != 0)", () => {
-  const { code } = synth("SkipTheWait-Phase2-Broken");
-  assert(code !== 0, "expected the broken stack to FAIL synth, but it passed");
-});
-
-check("BROKEN failure is the S3 public-access rule (CT.S3.PR.1)", () => {
-  const { out } = synth("SkipTheWait-Phase2-Broken");
+check("Phase 2 toggle is on state C (LOCKED) — baseline", () => {
+  const site = read("lib/constructs/website.ts");
+  // Baseline: the locked bucket (BLOCK_ALL) is the ACTIVE new s3.Bucket call.
+  const lockedActive = hasActiveLine(site, /blockPublicAccess:\s*s3\.BlockPublicAccess\.BLOCK_ALL/);
+  // The public toggles (publicReadAccess) must be commented in baseline.
+  const publicActive = hasActiveLine(site, /publicReadAccess:\s*true/);
   assert(
-    out.includes("CT.S3.PR.1"),
-    "expected rule CT.S3.PR.1 in the validation output",
-  );
-  assert(
-    /block public access/i.test(out),
-    "expected 'block public access' in the failure message",
+    lockedActive && !publicActive,
+    "Phase 2 website-bucket toggle is not on the LOCKED baseline. Reset website.ts to state C.",
   );
 });
 
-check("BROKEN failure names the construct path", () => {
-  const { out } = synth("SkipTheWait-Phase2-Broken");
-  assert(
-    out.includes("SkipTheWait-Phase2-Broken/PublicAssets/Resource"),
-    "expected the PublicAssets construct path in the report",
-  );
+check("all three Phase 2 states exist in website.ts (A built-in, B plugin, C locked)", () => {
+  const site = read("lib/constructs/website.ts");
+  assert(/A\) BUILT-IN/.test(site), "state A (built-in validation) block missing");
+  assert(/B\) POLICY PLUGIN/.test(site), "state B (plugin validation) block missing");
+  assert(/C\) LOCKED/.test(site), "state C (locked baseline) block missing");
+});
+
+check("baseline app passes BOTH validation layers (built-in + plugin)", () => {
+  // With the bucket LOCKED and the plugin ON, synth must succeed.
+  const { code, out } = synth("SkipTheWait-FeedbackWall");
+  assert(code === 0, `expected baseline to pass validation, got exit ${code}`);
+  assert(!out.includes("CT.S3.PR.1"), "baseline unexpectedly tripped the public-access rule");
 });
 
 // ------------------------------------------------------------
@@ -229,8 +242,9 @@ let fastMs = 0;
 let slowMs = 0;
 
 check("base app synths (exit 0) — analytics ON by default", () => {
+  // Uncached (runSynth): we need to measure a REAL synth, not a cache hit.
   const t = nowMs();
-  const { code } = synth("SkipTheWait-FeedbackWall");
+  const { code } = runSynth("SkipTheWait-FeedbackWall");
   slowMs = nowMs() - t;
   assert(code === 0, `expected exit 0, got ${code}`);
   return `${slowMs} ms`;
@@ -238,7 +252,7 @@ check("base app synths (exit 0) — analytics ON by default", () => {
 
 check("fast baseline synths (exit 0) — analytics OFF", () => {
   const t = nowMs();
-  const { code } = synth("SkipTheWait-FeedbackWall", ["-c", "includeAnalytics=false"]);
+  const { code } = runSynth("SkipTheWait-FeedbackWall", ["-c", "includeAnalytics=false"]);
   fastMs = nowMs() - t;
   assert(code === 0, `expected exit 0, got ${code}`);
   return `${fastMs} ms`;
@@ -320,32 +334,20 @@ check("analytics is ON by default in the base app", () => {
 });
 
 // ------------------------------------------------------------
-section("7. Phase 2 — guard is ON and the broken bucket is intact");
+section("7. Phase 2 — the policy plugin (Layer 2) is registered");
 
-check("the GUARD toggle is ON (validator registered) — baseline", () => {
+check("the CFN-Guard plugin toggle is ON (registered) — baseline", () => {
   const src = read("bin/app.ts");
-  // Baseline: the addPlugins(new CfnGuardValidator(...)) call is active code.
-  const guardOn = hasActiveLine(src, /addPlugins\(/) ||
+  const pluginOn = hasActiveLine(src, /addPlugins\(/) ||
     hasActiveLine(src, /new CfnGuardValidator\(/);
   assert(
-    guardOn,
-    "Phase 2 guard toggle is OFF (validator commented out). Reset to baseline: " +
-      "the CfnGuardValidator registration in bin/app.ts should be active.",
+    pluginOn,
+    "Phase 2 plugin toggle is OFF (CfnGuardValidator commented out). Reset bin/app.ts to baseline.",
   );
 });
 
-check("Phase2-Broken stack still has the public bucket (always broken)", () => {
-  const src = read("lib/phase2-broken-stack.ts");
-  assert(
-    hasActiveLine(src, /publicReadAccess:\s*true/),
-    "Phase2-Broken no longer opens public access — the misconfig was removed",
-  );
-});
-
-check("with guard ON, broken stack actually FAILS synth (end-to-end)", () => {
-  const { code, out } = synth("SkipTheWait-Phase2-Broken");
-  assert(code !== 0, "expected broken stack to FAIL synth with the guard on");
-  assert(out.includes("CT.S3.PR.1"), "expected CT.S3.PR.1 in the failure");
+check("the scoped public-access guard rule exists", () => {
+  assert(fileExists("rules/s3-block-public-access.guard"), "missing the guard rule file");
 });
 
 // ------------------------------------------------------------

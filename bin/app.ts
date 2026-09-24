@@ -3,45 +3,40 @@ import * as path from 'path';
 import * as cdk from 'aws-cdk-lib';
 import { CfnGuardValidator } from '@cdklabs/cdk-validator-cfnguard';
 import { FeedbackWallStack } from '../lib/feedback-wall-stack';
-import { Phase2BrokenStack } from '../lib/phase2-broken-stack';
 
 /**
  * AWS CDK - "Skip the wait"  ·  DevCon 2026 booth demo.
  *
- * Stacks:
- *   SkipTheWait-FeedbackWall     the real, working app (DynamoDB + Lambda + API GW + CloudFront)
- *   SkipTheWait-Phase2-Broken    a misconfiguration synth-time validation catches
+ * One stack, one app: SkipTheWait-FeedbackWall. All three phases live in it:
+ *   Phase 1  slow synth        — analytics is ON by default (Session Insights panel)
+ *   Phase 2  fail fast         — the website bucket toggle (built-in + plugin validation)
+ *   Phase 3  quick deploys     — --hotswap (Lambda) and --express (CloudFront)
  *
- * Phase 1 (slow synth) is baked into the base app — analytics is ON by default,
- * so `cdk synth SkipTheWait-FeedbackWall` is slow out of the box. Drop it to see
- * the fast baseline:
- *
+ * Phase 1: `cdk synth SkipTheWait-FeedbackWall` is slow out of the box. Drop
+ * analytics to see the fast baseline:
  *   npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=false
  *
- * Everything synthesizes offline. Only the FeedbackWall stack is meant to be
- * deployed (Phase 3: --hotswap and --express), against your own account.
+ * Everything synthesizes offline. Only Phase 3 actually deploys (own account).
  */
 const app = new cdk.App();
 
 // ┌────────────────────────────────────────────────────────────────────────┐
-// │ DEMO TOGGLE — PHASE 2  (synth-time validation: OFF ↔ ON)                 │
+// │ DEMO TOGGLE — PHASE 2, LAYER 2  (policy validation plugin: OFF ↔ ON)     │
 // │                                                                          │
-// │ This registers the policy-validation plugin that runs right after synth. │
-// │ It is the WHOLE POINT of Phase 2 — so we toggle the GUARD itself, not    │
-// │ the bucket. The Phase2-Broken stack always has the public bucket.        │
+// │ Registers the CFN-Guard policy-validation plugin that runs right after   │
+// │ synth. This is the SECOND validation layer: CDK's own built-in synth     │
+// │ validation (Layer 1) always runs regardless; this plugin adds security-  │
+// │ policy checks on top.                                                    │
 // │                                                                          │
-// │  • OFF (guard commented): `cdk synth SkipTheWait-Phase2-Broken` SUCCEEDS │
-// │      — the misconfigured template sails through, exactly like it would   │
-// │      on a plain deploy. This is the "before".                            │
-// │  • ON  (guard uncommented): the SAME stack now FAILS synth with          │
-// │      CT.S3.PR.1 + the construct path. The guard is provably what caught  │
-// │      it. This is the "after".                                            │
+// │ With the website bucket on toggle B (see website.ts), CDK's built-in     │
+// │ validation passes but this plugin FAILS synth on CT.S3.PR.1 with the     │
+// │ construct path. Comment this out to show the "before" (bad bucket slips  │
+// │ past the plugin — though Layer-1 built-in checks still apply).           │
 // │                                                                          │
-// │ Scoped to one rule (S3 Block Public Access) so the story is one clean    │
-// │ finding. Registered via the Validations class (non-deprecated API).      │
+// │ Scoped to one rule (S3 Block Public Access) for a clean, single finding. │
 // └────────────────────────────────────────────────────────────────────────┘
 
-// ---- GUARD ON (default): validation runs, broken bucket is caught ---------
+// ---- PLUGIN ON (default) --------------------------------------------------
 cdk.Validations.of(app).addPlugins(
   new CfnGuardValidator({
     controlTowerRulesEnabled: false,
@@ -50,8 +45,7 @@ cdk.Validations.of(app).addPlugins(
 );
 // ---------------------------------------------------------------------------
 
-// ---- GUARD OFF (the "before"): no validation, broken bucket slips through --
-// (comment the block above, and this whole demo has no guard registered)
+// ---- PLUGIN OFF (the "before"): comment the block above -------------------
 // ---------------------------------------------------------------------------
 
 // Analytics (the Session Insights panel + the Phase 1 slow-synth bottleneck) is
@@ -62,10 +56,6 @@ const includeAnalytics = app.node.tryGetContext('includeAnalytics') !== 'false';
 new FeedbackWallStack(app, 'SkipTheWait-FeedbackWall', {
   description: 'The CDK Booth Feedback Wall — live reactions app for DevCon 2026.',
   includeAnalytics,
-});
-
-new Phase2BrokenStack(app, 'SkipTheWait-Phase2-Broken', {
-  description: 'Phase 2: an obvious misconfiguration that synth-time validation catches before deploy.',
 });
 
 app.synth();

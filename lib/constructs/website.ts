@@ -45,7 +45,51 @@ export class FeedbackWebsite extends Construct {
   constructor(scope: Construct, id: string, props: FeedbackWebsiteProps) {
     super(scope, id);
 
-    // Private bucket — locked down. CloudFront reaches it via Origin Access.
+    // ┌──────────────────────────────────────────────────────────────────┐
+    // │ DEMO TOGGLE — PHASE 2  (fail fast: two layers of synth validation) │
+    // │                                                                    │
+    // │ "I want to serve files straight from the site bucket, so I make it │
+    // │  public." Three states of the SAME website bucket, in order:       │
+    // │                                                                    │
+    // │  A) BUILT-IN  — publicReadAccess:true, blockPublicAccess left at    │
+    // │     BLOCK_ALL. CDK's OWN synth validation throws immediately:       │
+    // │     "Cannot use 'publicReadAccess' ... without allowing bucket-     │
+    // │     level public access through 'blockPublicAccess'." No plugin,    │
+    // │     no deploy — CDK itself catches the inconsistency.               │
+    // │                                                                    │
+    // │  B) PLUGIN    — you "fix" it by ALSO opening blockPublicAccess.     │
+    // │     CDK is now happy... but the bucket is genuinely public. The     │
+    // │     CFN-Guard policy plugin fails synth on CT.S3.PR.1 with the      │
+    // │     construct path. Caught on your laptop, before deploy.           │
+    // │                                                                    │
+    // │  C) LOCKED (default) — BLOCK_ALL, no public read. Both pass.        │
+    // │                                                                    │
+    // │ Uncomment ONE block. Baseline = C.                                  │
+    // └──────────────────────────────────────────────────────────────────┘
+
+    // ---- A) BUILT-IN validation catches it (CDK throws at synth) --------
+    // this.bucket = new s3.Bucket(this, 'SiteBucket', {
+    //   publicReadAccess: true, // blockPublicAccess stays BLOCK_ALL -> CDK rejects
+    //   encryption: s3.BucketEncryption.S3_MANAGED,
+    //   enforceSSL: true,
+    //   removalPolicy: cdk.RemovalPolicy.DESTROY,
+    //   autoDeleteObjects: true,
+    // });
+
+    // ---- B) POLICY PLUGIN catches it (CDK passes, CFN-Guard fails) ------
+    // this.bucket = new s3.Bucket(this, 'SiteBucket', {
+    //   blockPublicAccess: new s3.BlockPublicAccess({
+    //     blockPublicAcls: false, blockPublicPolicy: false,
+    //     ignorePublicAcls: false, restrictPublicBuckets: false,
+    //   }),
+    //   publicReadAccess: true,
+    //   encryption: s3.BucketEncryption.S3_MANAGED,
+    //   enforceSSL: true,
+    //   removalPolicy: cdk.RemovalPolicy.DESTROY,
+    //   autoDeleteObjects: true,
+    // });
+
+    // ---- C) LOCKED (default/baseline): private, both checks pass --------
     this.bucket = new s3.Bucket(this, 'SiteBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,

@@ -21,13 +21,17 @@ the other. You never write code at the table.
 | Phase | File with the toggle | Flip | What the flip proves |
 | --- | --- | --- | --- |
 | 1 | `lib/constructs/analytics.ts` | SLOW ↔ FAST | the skill found the real bottleneck |
-| 2 | `bin/app.ts` | GUARD OFF ↔ ON | the guard is what catches the bad bucket |
+| 2 | `lib/constructs/website.ts` (site bucket) | C locked → A built-in → B plugin | two synth-time validation layers catch a public bucket |
 | 3a | `lambda/reactions/index.js` | V1 ↔ V2 (`API_VERSION`) | code-only → hotswap used; **badge flips live on the wall** |
-| 3b | `lib/constructs/website.ts` | V1 ↔ V2 (`errorResponses`) | CFN CloudFront change → express skips the stabilization wait |
+| 3b | `lib/constructs/website.ts` (CloudFront) | V1 ↔ V2 (`errorResponses`) | CFN CloudFront change → express skips the stabilization wait |
 
 After a `.ts` toggle, run `npm run build`. (The Lambda toggle is plain JS — no
-build.) To restore all toggles to baseline between runs: `npm run reset`, then
-`npm test` to confirm 43/43.
+build.)
+
+**Resetting between runs:**
+- Local code only (no deploys) → `npm run reset`, then `npm test` (expect 43/43).
+- If you deployed Phase 3 (hotswap/express) → `npm run reset:deploy` (resets code
+  AND restores the live stack + Lambda), then `npm test`.
 
 ---
 
@@ -49,16 +53,16 @@ booth. We're going to change it live."
 
 **Setup line:**
 
-> "I added a per-session analytics dashboard to the app. Synth went from instant
-> to painful. Watch."
+> "This app has a Session Insights panel — the second tab on the wall. It's part
+> of the app, and my synth has gotten painfully slow. Watch."
 
-**Run the slow synth** (the analytics construct is behind a context flag):
+**Run the synth** (analytics is baked into the base app — no flag needed):
 
 ```bash
-time npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
+time npx cdk synth SkipTheWait-FeedbackWall > /dev/null
 ```
 
-Let them see the wall-clock seconds.
+Let them see the wall-clock seconds (~15-18s).
 
 **Now bring in the skill.** In Kiro (or your agent of choice), the
 `cdk-synth-performance` skill is in `.kiro/skills/`. Ask:
@@ -69,105 +73,123 @@ The skill captures a CPU profile and reports back. The finding it should land
 on:
 
 - Construction phase dominates.
-- One user-code function — `hashConfig` / `buildSessionFingerprint` in
+- One user-code function — `renderReportBundle()` in
   `lib/constructs/analytics.ts` — accounts for most of the time.
-- It's called once **per session**, every call re-reading and re-hashing the
-  **same** file. Identical input, thrown away each time.
+- It reads and assembles the entire `assets/insight-templates/` bundle
+  (`fs.readdirSync` + `fs.readFileSync` over every file), and it's called once
+  **per session** — the same bundle, re-read and re-rendered every time.
 
 **The talking point:**
 
-> "It's not that CDK is slow. It's that my code hashes the same config file
-> twelve times for no reason. The skill didn't guess — it profiled it and
-> pointed at the line."
+> "It's not that CDK is slow. It's that my code re-reads and re-renders the same
+> template bundle for every session — dozens of times — when the bundle never
+> changes. The skill didn't guess; it profiled it and pointed at the function."
 
 **The fix, live — no typing.** In `lib/constructs/analytics.ts` find the
-`DEMO TOGGLE — PHASE 1` banner. There are two blocks: **SLOW** (active) and
-**FAST** (commented). Comment the SLOW block, uncomment the FAST block. The FAST
-block hoists the read + hash out of the loop so they run once. Then:
+`DEMO TOGGLE — PHASE 1` banner. Two blocks: **SLOW** (active) renders the bundle
+per session; **FAST** (commented) renders it once before the loop and reuses it.
+Comment the SLOW block, uncomment the FAST block. Then:
 
 ```bash
 npm run build      # recompile TS -> JS (toggles live in .ts)
-time npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
+time npx cdk synth SkipTheWait-FeedbackWall > /dev/null
 ```
 
-**Re-run** the timed synth — the ~2s of duplicated work disappears.
+**Re-run** the timed synth — it drops from ~15-18s to ~3-4s.
 
-> "Same dashboard. The waiting is gone."
+> "Same panel. The waiting is gone."
 
 > **Note for the presenter:** flipping the toggle is optional theatre — the real
 > point is the *skill found it*. If you do flip it, remember `npm run build`
 > before the re-synth, and `npm run reset` afterward to restore the baseline.
+> (To show the fast baseline directly, `-c includeAnalytics=false` drops the
+> panel entirely.)
 
 ---
 
 ## Phase 2 — "Fail fast, not after a 3-minute deploy" (2 min)
 
-This phase toggles the **validation guard itself**, so the audience sees that
-the guard is what catches the mistake — not a hand-fix. The broken bucket stays
-broken the whole time; only the guard moves.
+The misconfiguration lives in the **real app's website bucket** — no separate
+stack. It's a three-state toggle on the same bucket that shows **two validation
+layers**: CDK's own built-in synth validation, then the policy plugin. Baseline
+is **C (locked)**.
 
-**File to open:** `lib/phase2-broken-stack.ts` (show the mistake), then
-`bin/app.ts` (the `DEMO TOGGLE — PHASE 2` guard banner).
+**File to open:** `lib/constructs/website.ts` — the `DEMO TOGGLE — PHASE 2`
+banner (states A / B / C).
 
-### Step 1 — the "before": guard OFF, bad bucket sails through
+**Setup line:**
 
-Start with the guard **commented out** in `bin/app.ts` (the OFF side).
+> "I want to serve some files straight from the site bucket, so I make it public.
+> Classic mistake. Watch how far it gets."
 
-> "I need a bucket for some assets, and I've made a classic mistake — I've left
-> it open to the public. Watch what a plain synth does with that."
+### Layer 1 — CDK's built-in synth validation (state A)
 
-```bash
-npm run build
-npx cdk synth SkipTheWait-Phase2-Broken     # SUCCEEDS (exit 0)
-```
-
-> "Synth succeeded. That public bucket is perfectly valid CloudFormation — so a
-> plain deploy would happily ship it, and I'd find out in prod. That's the
-> problem."
-
-### Step 2 — the "after": turn the guard ON
-
-In `bin/app.ts`, uncomment the **GUARD ON** block (the
-`Validations.of(app).addPlugins(new CfnGuardValidator(...))` call). **Nothing
-about the bucket changes.**
+Comment state C, uncomment **state A** (`publicReadAccess: true`, but
+`blockPublicAccess` left at BLOCK_ALL). Then:
 
 ```bash
 npm run build
-npx cdk synth SkipTheWait-Phase2-Broken     # now FAILS (exit 1)
+npx cdk synth SkipTheWait-FeedbackWall     # FAILS — CDK itself throws
 ```
 
-It fails at synth with:
+CDK's **own** validation rejects it at synth (no plugin involved):
+
+```
+Cannot use 'publicReadAccess' property on a bucket without allowing bucket-level
+public access through 'blockPublicAccess' property.
+```
+
+> "That's CDK's built-in validation — it caught an inconsistent config before
+> any plugin, before any deploy. Free, on my laptop, instantly."
+
+### Layer 2 — the policy validation plugin (state B)
+
+Now "fix" it the wrong way: comment state A, uncomment **state B** — which ALSO
+opens `blockPublicAccess`. Now CDK's built-in check is satisfied... but the
+bucket is genuinely public. Then:
+
+```bash
+npm run build
+npx cdk synth SkipTheWait-FeedbackWall     # PASSES built-in, FAILS the plugin
+```
+
+The CFN-Guard policy plugin fails synth with the rule and the construct path:
 
 ```
 ERROR [CT.S3.PR.1]: Require an Amazon S3 bucket to have block public access settings configured
-   SkipTheWait-Phase2-Broken/PublicAssets/Resource (PublicAssetsACF28B1B) aws-cdk-lib.aws_s3.CfnBucket
+   SkipTheWait-FeedbackWall/Website/SiteBucket/Resource (...) aws-cdk-lib.aws_s3.CfnBucket
    Suggested fix: The parameters 'BlockPublicAcls', 'BlockPublicPolicy', 'IgnorePublicAcls',
    'RestrictPublicBuckets' must be set to true under the bucket-level 'PublicAccessBlockConfiguration'.
 ```
 
 **The talking point (this is the proof):**
 
-> "Same bucket, same template. The only thing I changed was turning the
-> validation guard on. Now the exact misconfiguration is caught at synth — on my
-> laptop, in one second — with the rule and the construct path. That's synth-time
-> validation doing the work, not me."
+> "Two layers caught this before a deploy. CDK's built-in validation caught the
+> structural mistake. Then the policy plugin caught the security problem CDK
+> can't know about — a genuinely public bucket — with the exact rule and
+> construct path. All on my laptop, in one second, not three minutes into a
+> deploy or in prod."
 
-> **Under the hood:** the guard is a real online policy-validation plugin
-> (`@cdklabs/cdk-validator-cfnguard`) registered via
-> `Validations.of(app).addPlugins(...)` in `bin/app.ts`. For a legible demo we
-> scoped it to the single S3 public-access rule
-> (`rules/s3-block-public-access.guard`) so it's one clean finding.
+### The real fix (state C)
 
-> **Say the bigger capability:** this same plugin ships the full **Control Tower
-> proactive security controls** — dozens of managed rules (encryption at rest,
-> versioning, access logging, SSL-only, public-access, and more) across many
-> resource types. Drop `controlTowerRulesEnabled: false` in `bin/app.ts` and it
-> validates the whole app against that managed security ruleset at synth. You can
-> also add CDK Nag, OPA, or your org's own CFN-Guard rules the same way. Point:
-> this isn't one hand-written check — it's a pluggable, shift-left security gate
-> that runs before anything leaves your laptop.
+Comment state B, uncomment **state C** (`BLOCK_ALL`, no public read) — the
+baseline. Then `npm run build && npx cdk synth SkipTheWait-FeedbackWall` passes
+both layers.
 
-> **Reset:** the baseline is guard **ON**. `npm run reset` restores it.
+> **Under the hood:** the plugin is `@cdklabs/cdk-validator-cfnguard`, registered
+> via `Validations.of(app).addPlugins(...)` in `bin/app.ts`, scoped to the single
+> S3 public-access rule (`rules/s3-block-public-access.guard`) for one clean
+> finding.
+
+> **Say the bigger capability:** the same plugin ships the full **Control Tower
+> proactive security controls** — dozens of managed rules (encryption, versioning,
+> access logging, SSL-only, public-access, and more) across many resource types.
+> Drop `controlTowerRulesEnabled: false` in `bin/app.ts` to run the whole managed
+> security ruleset at synth. You can also add CDK Nag, OPA, or your org's own
+> CFN-Guard rules the same way — a pluggable, shift-left security gate that runs
+> before anything leaves your laptop.
+
+> **Reset:** baseline is state **C**. `npm run reset` restores it.
 
 ---
 
@@ -262,19 +284,14 @@ npm run build
 cdk deploy SkipTheWait-FeedbackWall --express --require-approval never
 ```
 
-**Proof the mechanism matters — this is a CloudFront change.** First, show that
-hotswap can't do it:
-
-```bash
-# Optional: prove hotswap declines this change
-cdk deploy SkipTheWait-FeedbackWall --hotswap
-# → "SkipTheWait-FeedbackWall (no changes)":
-#   CloudFront distribution changes are NOT hotswappable.
-```
-
-Then deploy it through CloudFormation with express, and it reports complete as
-soon as the config is applied — instead of blocking on CloudFront's
+It deploys through CloudFormation (it's a real template change), but reports
+complete as soon as the config is applied — instead of blocking on CloudFront's
 stabilization/propagation.
+
+> **Don't demo `--hotswap` here to "prove" it can't do this.** Plain `--hotswap`
+> doesn't announce that it declined — it silently skips the change and prints
+> `✅ (no changes)`, which looks like a no-op, not a lesson. Just say hotswap
+> doesn't apply to infrastructure changes and move on.
 
 > "Hotswap can't touch this — it's a real CloudFront change, so it has to go
 > through CloudFormation. But with `--express`, CloudFormation reports done as
@@ -305,18 +322,18 @@ Hand them the cheat-sheet card (`docs/CHEAT-SHEET.md`).
 
 ```bash
 # Before each demo: confirm baseline (all toggles on their default side)
-npm test                                    # expect 45/45, "Ground state is GOOD"
+npm test                                    # expect 43/43, "Ground state is GOOD"
 
-# Phase 1 — slow synth + investigation
-time npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
-NODE_OPTIONS="--cpu-prof --cpu-prof-dir=./profile" npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
+# Phase 1 — slow synth + investigation (analytics is ON by default)
+time npx cdk synth SkipTheWait-FeedbackWall > /dev/null
+NODE_OPTIONS="--cpu-prof --cpu-prof-dir=./profile" npx cdk synth SkipTheWait-FeedbackWall > /dev/null
 # (flip SLOW->FAST toggle in analytics.ts, then:)  npm run build && <re-run synth>
+# fast baseline for contrast:  npx cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=false
 
-# Phase 2 — fail fast (toggle the GUARD in bin/app.ts, not the bucket)
-# guard OFF (before): broken bucket slips through
-npm run build && npx cdk synth SkipTheWait-Phase2-Broken     # SUCCEEDS
-# guard ON (after): same bucket now caught
-npm run build && npx cdk synth SkipTheWait-Phase2-Broken     # FAILS: CT.S3.PR.1 + path
+# Phase 2 — fail fast (toggle the site bucket in website.ts: C locked / A built-in / B plugin)
+npm run build && npx cdk synth SkipTheWait-FeedbackWall     # state A -> CDK built-in throws
+npm run build && npx cdk synth SkipTheWait-FeedbackWall     # state B -> plugin fails CT.S3.PR.1
+npm run build && npx cdk synth SkipTheWait-FeedbackWall     # state C (baseline) -> passes both
 
 # Phase 3 — fast deploys (needs an account)
 # (flip V1->V2 in lambda/reactions/index.js, then:)

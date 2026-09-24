@@ -70,12 +70,19 @@ function synth(stack, extraArgs = []) {
       encoding: "utf-8",
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, CI: "1" },
+      // The base app synth is deliberately slow (~15-20s, Phase 1). Give it
+      // plenty of headroom and a large buffer so the harness never flakes on a
+      // cold, slow synth.
+      timeout: 120000,
+      maxBuffer: 64 * 1024 * 1024,
     });
     return { code: 0, out };
   } catch (e) {
-    // execSync throws on non-zero exit; capture what we can.
+    // execSync throws on non-zero exit OR timeout; capture what we can.
     const out = `${e.stdout || ""}\n${e.stderr || ""}`;
-    return { code: e.status == null ? 1 : e.status, out };
+    // A timeout kill surfaces as e.signal (e.g. SIGTERM) with null status.
+    const code = e.status == null ? (e.signal ? 124 : 1) : e.status;
+    return { code, out };
   }
 }
 

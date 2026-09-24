@@ -18,6 +18,15 @@ Docs:
 - [`docs/HOTSWAP.md`](docs/HOTSWAP.md) — ground-up reference for `--hotswap` (read before Phase 3a)
 - [`docs/EXPRESS-MODE.md`](docs/EXPRESS-MODE.md) — ground-up reference for `--express` (read before Phase 3b)
 
+## Live deployment
+
+- **Feedback wall:** https://d10vcmdyjfal7.cloudfront.net
+- **Reactions API:** https://jqpy0aksui.execute-api.us-east-1.amazonaws.com/prod/
+
+Stack `SkipTheWait-FeedbackWall` in us-east-1 (sandbox 615368094448). URLs come
+from the `cdk deploy` outputs (`WallUrl` / `ApiUrl`) — they change if you deploy
+a fresh stack.
+
 ## The app
 
 Attendees open a URL, submit a one-line reaction to a session, and watch the

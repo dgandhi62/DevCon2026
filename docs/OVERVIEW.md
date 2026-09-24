@@ -11,6 +11,17 @@ other docs go deeper on individual pieces:
 
 ---
 
+## Live deployment (us-east-1, sandbox account 615368094448)
+
+- **Feedback wall (site):** https://d10vcmdyjfal7.cloudfront.net
+- **Reactions API:** https://jqpy0aksui.execute-api.us-east-1.amazonaws.com/prod/
+
+These are generated at deploy time (the stack's `WallUrl` / `ApiUrl` outputs) —
+they are not hard-coded in the app. If you redeploy to a fresh stack/account the
+URLs change; re-check the `cdk deploy` outputs. Stack: `SkipTheWait-FeedbackWall`.
+
+---
+
 ## 1. Why this exists
 
 This is the DevCon 2026 booth demo for the submission **"AWS CDK — Skip the

@@ -29,19 +29,18 @@
       </div>
     </header>
 
-    <!-- Session Insights: precomputed at synth time by the SessionAnalytics
-         construct and injected via config.js (window.SESSION_INSIGHTS). This is
-         the visible output of the Phase 1 work the synth-performance skill
-         profiles. -->
-    <section class="insights" id="insightsPanel" aria-label="Session insights">
-      <div class="insights-head">
-        <h2>Session insights</h2>
-        <span class="insights-sub">precomputed at synth · <span id="insightsCount">0</span> sessions</span>
-      </div>
-      <div class="insights-grid" id="insightsGrid"></div>
-    </section>
+    <!-- Tab bar: Reactions (default) | Sessions -->
+    <nav class="tabs" role="tablist" aria-label="Views">
+      <button class="tab selected" id="tabReactions" role="tab" aria-selected="true" data-tab="reactions">
+        Drop a reaction
+      </button>
+      <button class="tab" id="tabSessions" role="tab" aria-selected="false" data-tab="sessions">
+        Sessions <span class="tab-count" id="tabSessionsCount">0</span>
+      </button>
+    </nav>
 
-    <main class="wrap">
+    <!-- ===== TAB 1: Reactions (default) ===== -->
+    <main class="wrap tab-panel" id="panelReactions" role="tabpanel">
       <section class="composer" aria-label="Leave a reaction">
         <h2>Drop a reaction</h2>
         <p class="composer-hint">What's your take on the sessions so far?</p>
@@ -101,6 +100,19 @@
           <div class="sk-card"></div>
           <div class="sk-card"></div>
         </div>
+      </section>
+    </main>
+
+    <!-- ===== TAB 2: Sessions ===== -->
+    <!-- The session catalog is precomputed at synth time by the SessionAnalytics
+         construct and injected via config.js (window.SESSION_INSIGHTS). -->
+    <main class="wrap-single tab-panel" id="panelSessions" role="tabpanel" hidden>
+      <section class="sessions" aria-label="Session catalog">
+        <div class="sessions-head">
+          <h2>Session catalog</h2>
+          <span class="sessions-sub">the DevCon 2026 program &middot; <span id="insightsCount">0</span> sessions</span>
+        </div>
+        <div class="sessions-grid" id="insightsGrid"></div>
       </section>
     </main>
 

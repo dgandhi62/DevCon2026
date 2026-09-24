@@ -179,6 +179,9 @@
         setStatus(DEMO_MODE ? "demo mode (no API configured)" : "live", DEMO_MODE ? "" : "ok");
       })
       .catch(function (err) {
+        // Even on error, drop the loading skeleton so we don't leave grey
+        // shimmering blocks that look like broken cards.
+        if (els.skeleton) els.skeleton.hidden = true;
         setStatus("API error: " + err.message, "err");
       });
   }
@@ -266,20 +269,22 @@
   // Rendered from window.SESSION_INSIGHTS, which the CDK BucketDeployment injects
   // into config.js at deploy time (precomputed at synth by SessionAnalytics).
   function renderInsights() {
-    var panel = document.getElementById("insightsPanel");
     var grid = document.getElementById("insightsGrid");
     var count = document.getElementById("insightsCount");
-    if (!panel || !grid) return;
+    var tabCount = document.getElementById("tabSessionsCount");
+    if (!grid) return;
 
     var insights = window.SESSION_INSIGHTS;
     if (DEMO_MODE && (!insights || !insights.length)) insights = seedInsights();
+    insights = insights || [];
 
-    if (!insights || !insights.length) {
-      panel.hidden = true;
+    if (count) count.textContent = String(insights.length);
+    if (tabCount) tabCount.textContent = String(insights.length);
+
+    if (!insights.length) {
+      grid.innerHTML = '<p class="sessions-empty">No sessions in the catalog.</p>';
       return;
     }
-    panel.hidden = false;
-    if (count) count.textContent = String(insights.length);
 
     var maxCap = insights.reduce(function (m, s) {
       return Math.max(m, s.capacity || 0);
@@ -289,14 +294,14 @@
       .map(function (s) {
         var pct = Math.round(((s.capacity || 0) / maxCap) * 100);
         return (
-          '<div class="insight-card">' +
-          '<div class="insight-top">' +
-          '<span class="insight-title">' + escapeHtml(s.title) + "</span>" +
-          '<span class="insight-fp" title="template bundle fingerprint">' + escapeHtml(s.templatesHash || "") + "</span>" +
+          '<div class="session-card">' +
+          '<span class="session-title">' + escapeHtml(s.title) + "</span>" +
+          '<span class="session-track">' + escapeHtml(s.track) + "</span>" +
+          '<div class="session-cap-row">' +
+          '<div class="session-bar"><div class="session-bar-fill" style="width:' + pct + '%"></div></div>' +
+          '<span class="session-cap">' + (s.capacity || 0) + "</span>" +
           "</div>" +
-          '<span class="insight-track">' + escapeHtml(s.track) + "</span>" +
-          '<div class="insight-bar"><div class="insight-bar-fill" style="width:' + pct + '%"></div></div>' +
-          '<span class="insight-cap">' + (s.capacity || 0) + " seats</span>" +
+          '<span class="session-cap-label">capacity</span>' +
           "</div>"
         );
       })
@@ -306,14 +311,37 @@
   function seedInsights() {
     // Local demo-mode fallback so the panel is populated when opened offline.
     return [
-      { id: "s0", title: "Day 1: Keynote", track: "main", capacity: 4000, templatesHash: "a1b2c3d4" },
-      { id: "s1", title: "Day 1: Skip the Wait", track: "builder-tools", capacity: 300, templatesHash: "a1b2c3d4" },
-      { id: "s2", title: "Day 1: Serverless at Scale", track: "serverless", capacity: 450, templatesHash: "a1b2c3d4" },
-      { id: "s5", title: "Day 1: GenAI for Builders", track: "ai", capacity: 600, templatesHash: "a1b2c3d4" },
+      { id: "s0", title: "Day 1: Keynote", track: "main", capacity: 400 },
+      { id: "s1", title: "Day 1: Skip the Wait", track: "builder-tools", capacity: 300 },
+      { id: "s2", title: "Day 1: Serverless at Scale", track: "serverless", capacity: 450 },
+      { id: "s5", title: "Day 1: GenAI for Builders", track: "ai", capacity: 600 },
     ];
   }
 
+  // ---- tabs ----
+  function setupTabs() {
+    var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
+    var panels = {
+      reactions: document.getElementById("panelReactions"),
+      sessions: document.getElementById("panelSessions"),
+    };
+    tabs.forEach(function (tab) {
+      tab.addEventListener("click", function () {
+        var target = tab.dataset.tab;
+        tabs.forEach(function (t) {
+          var on = t === tab;
+          t.classList.toggle("selected", on);
+          t.setAttribute("aria-selected", on ? "true" : "false");
+        });
+        Object.keys(panels).forEach(function (k) {
+          if (panels[k]) panels[k].hidden = k !== target;
+        });
+      });
+    });
+  }
+
   // ---- boot ----
+  setupTabs();
   renderInsights();
   refresh();
   setInterval(refresh, POLL_MS);

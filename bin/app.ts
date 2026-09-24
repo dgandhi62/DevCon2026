@@ -4,7 +4,6 @@ import * as cdk from 'aws-cdk-lib';
 import { CfnGuardValidator } from '@cdklabs/cdk-validator-cfnguard';
 import { FeedbackWallStack } from '../lib/feedback-wall-stack';
 import { Phase2BrokenStack } from '../lib/phase2-broken-stack';
-import { Phase2FixedStack } from '../lib/phase2-fixed-stack';
 
 /**
  * AWS CDK - "Skip the wait"  ·  DevCon 2026 booth demo.
@@ -12,7 +11,6 @@ import { Phase2FixedStack } from '../lib/phase2-fixed-stack';
  * Stacks:
  *   SkipTheWait-FeedbackWall     the real, working app (DynamoDB + Lambda + API GW + CloudFront)
  *   SkipTheWait-Phase2-Broken    a misconfiguration synth-time validation catches
- *   SkipTheWait-Phase2-Fixed     the corrected version that passes
  *
  * Phase 1 (slow synth) is driven by a context flag so the everyday app stays
  * fast. Turn the slow analytics construct on for the Phase 1 walkthrough:
@@ -42,7 +40,7 @@ const app = new cdk.App();
 // │ finding. Registered via the Validations class (non-deprecated API).      │
 // └────────────────────────────────────────────────────────────────────────┘
 
-// // ---- GUARD ON (default): validation runs, broken bucket is caught ---------
+// ---- GUARD ON (default): validation runs, broken bucket is caught ---------
 cdk.Validations.of(app).addPlugins(
   new CfnGuardValidator({
     controlTowerRulesEnabled: false,
@@ -64,10 +62,6 @@ new FeedbackWallStack(app, 'SkipTheWait-FeedbackWall', {
 
 new Phase2BrokenStack(app, 'SkipTheWait-Phase2-Broken', {
   description: 'Phase 2: an obvious misconfiguration that synth-time validation catches before deploy.',
-});
-
-new Phase2FixedStack(app, 'SkipTheWait-Phase2-Fixed', {
-  description: 'Phase 2: the corrected stack that passes synth-time validation.',
 });
 
 app.synth();

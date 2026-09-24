@@ -14,7 +14,7 @@
  * analytics construct, Phase 2's public bucket). So "ground state" does NOT mean
  * "everything passes". It means:
  *
- *   - the WORKING things work        (app synths clean, fixed stack passes)
+ *   - the WORKING things work        (app synths clean with no warnings)
  *   - the BROKEN things are broken in the EXPECTED way
  *       (public bucket fails validation with CT.S3.PR.1)
  *   - the SLOW thing is measurably slower than the fast path
@@ -114,7 +114,6 @@ const REQUIRED_FILES = [
   "bin/app.ts",
   "lib/feedback-wall-stack.ts",
   "lib/phase2-broken-stack.ts",
-  "lib/phase2-fixed-stack.ts",
   "lib/constructs/database.ts",
   "lib/constructs/api.ts",
   "lib/constructs/website.ts",
@@ -214,11 +213,6 @@ check("BROKEN failure names the construct path", () => {
     out.includes("SkipTheWait-Phase2-Broken/PublicAssets/Resource"),
     "expected the PublicAssets construct path in the report",
   );
-});
-
-check("FIXED stack PASSES synth (exit 0)", () => {
-  const { code } = synth("SkipTheWait-Phase2-Fixed");
-  assert(code === 0, `expected the fixed stack to pass, got exit ${code}`);
 });
 
 // ------------------------------------------------------------

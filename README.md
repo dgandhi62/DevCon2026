@@ -35,8 +35,7 @@ API Gateway ──► Lambda (Node.js) ──► DynamoDB (reactions table)
 | Stack | Purpose |
 | --- | --- |
 | `SkipTheWait-FeedbackWall` | The real, working app (DynamoDB + Lambda + API GW + S3/CloudFront) |
-| `SkipTheWait-Phase2-Broken` | A public S3 bucket — synth-time validation fails on it |
-| `SkipTheWait-Phase2-Fixed` | The corrected bucket — synth passes |
+| `SkipTheWait-Phase2-Broken` | A public S3 bucket — synth-time validation fails on it when the guard is on |
 
 ## Setup
 
@@ -56,9 +55,9 @@ npx cdk synth      # synthesize all stacks (no AWS account needed)
 # Phase 1 — investigate slow synth (see docs/PRESENTER-SCRIPT.md for the skill)
 NODE_OPTIONS="--cpu-prof --cpu-prof-dir=./profile" npx cdk synth SkipTheWait-FeedbackWall > /dev/null
 
-# Phase 2 — fail fast on a misconfiguration
-npx cdk synth SkipTheWait-Phase2-Broken    # fails: validation report + construct path
-npx cdk synth SkipTheWait-Phase2-Fixed     # passes
+# Phase 2 — fail fast on a misconfiguration (toggle the guard in bin/app.ts)
+npx cdk synth SkipTheWait-Phase2-Broken    # guard on: fails with validation report + construct path
+                                           # guard off: same bucket synths clean (the "before")
 
 # Phase 3 — fast deploys (run against your own account)
 cdk deploy SkipTheWait-FeedbackWall --hotswap    # Lambda code change, seconds
@@ -74,8 +73,7 @@ lib/constructs/api.ts          Lambda + API Gateway   (hotswap target)
 lib/constructs/website.ts      S3 + CloudFront + deploy (express target)
 lib/constructs/analytics.ts    Phase 1 slow construct  (duplicated-work bottleneck)
 lib/feedback-wall-stack.ts     Composes the real app
-lib/phase2-broken-stack.ts     Phase 2 misconfiguration
-lib/phase2-fixed-stack.ts      Phase 2 corrected
+lib/phase2-broken-stack.ts     Phase 2 misconfiguration (guard toggled in bin/app.ts)
 lambda/reactions/index.js      API handler (hand-written JS)
 frontend/                      Static site (index.html, styles.css, app.js)
 .kiro/skills/                  cdk-synth-performance skill

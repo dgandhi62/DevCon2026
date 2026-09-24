@@ -80,8 +80,7 @@ DevCon2026/
 │   │   └── analytics.ts          # ← Phase 1 lives here: the SLOW construct
 │   │
 │   ├── feedback-wall-stack.ts    # the real, working app (composes the above)
-│   ├── phase2-broken-stack.ts    # Phase 2: misconfig that validation catches
-│   └── phase2-fixed-stack.ts     # Phase 2: corrected version
+│   └── phase2-broken-stack.ts    # Phase 2: misconfig that validation catches
 │
 ├── lambda/
 │   └── reactions/
@@ -133,8 +132,8 @@ deploy (or in prod).
   `@aws/cloudformation-validate` plugin right after synth. Synth **fails**, and
   the validation report prints the failing rule and the **construct path** to
   the bucket.
-- **The fix (shown live):** switch to `phase2-fixed-stack.ts`, which locks the
-  bucket down. Synth passes.
+- **The fix (shown live):** toggle the validation guard in `bin/app.ts` on/off
+  to show that the guard is what catches the (unchanged) bad bucket.
 
 ### Phase 3 — "Quick deployments" → `lib/constructs/api.ts` + `lib/constructs/website.ts`
 
@@ -173,7 +172,7 @@ dev cycle: **authoring → synth → deploy → iterate**.
 3. Lambda handler: `lambda/reactions/index.js` (GET list + POST reaction, DynamoDB).
 4. Constructs: `database.ts`, `api.ts`, `website.ts`, then `feedback-wall-stack.ts`.
 5. Phase 1 slow construct: `analytics.ts` (duplicated-work bottleneck).
-6. Phase 2: `phase2-broken-stack.ts` + `phase2-fixed-stack.ts`.
+6. Phase 2: `phase2-broken-stack.ts` + the validation guard toggle in `bin/app.ts`.
 7. Wire `bin/app.ts`.
 8. Docs: `PRESENTER-SCRIPT.md`, `CHEAT-SHEET.md`.
 9. Verify: `npm install`, `tsc`, `cdk synth` each stack; confirm Phase 2

@@ -145,8 +145,7 @@ Three CloudFormation stacks, all synthesizable offline (no AWS account needed to
 | Stack | What it is | Role in the demo |
 | --- | --- | --- |
 | `SkipTheWait-FeedbackWall` | The real, working app | The thing on screen; the deploy target for Phase 3 |
-| `SkipTheWait-Phase2-Broken` | A public S3 bucket | Phase 2 — synth-time validation FAILS on it |
-| `SkipTheWait-Phase2-Fixed` | The locked-down bucket | Phase 2 — validation PASSES |
+| `SkipTheWait-Phase2-Broken` | A public S3 bucket | Phase 2 — synth-time validation FAILS on it when the guard is on |
 
 The `FeedbackWall` stack has an opt-in `includeAnalytics` flag (a CDK context
 value) that adds the slow analytics construct for Phase 1. Off by default so the
@@ -165,8 +164,8 @@ bin/
 lib/
   feedback-wall-stack.ts     Composes the real app from the constructs below.
                              Holds the includeAnalytics toggle for Phase 1.
-  phase2-broken-stack.ts     Phase 2: an S3 bucket with public access turned on.
-  phase2-fixed-stack.ts      Phase 2: the corrected, locked-down bucket.
+  phase2-broken-stack.ts     Phase 2: an S3 bucket with public access turned on
+                             (always broken; the guard in bin/app.ts is toggled).
 
   constructs/
     database.ts              DynamoDB reactions table (on-demand billing).
@@ -237,12 +236,17 @@ Measured contrast: fast synth ~3.4s vs slow ~5.6s (tunable via the construct's
 
 ### Phase 2 — "Fail fast, not after a 3-minute deploy" (synth)
 
-**Files:** `lib/phase2-broken-stack.ts` → `lib/phase2-fixed-stack.ts`
+**Files:** `lib/phase2-broken-stack.ts` (always broken) + the guard toggle in
+`bin/app.ts`.
 
 The broken stack creates an S3 bucket with Block Public Access turned **off** and
 public read granted. It synthesizes into perfectly valid CloudFormation — which
-is the whole point: a plain deploy would have accepted it. Instead, the synth-time
-validation plugin fails the synth immediately:
+is the whole point: a plain deploy would have accepted it. The demo toggles the
+**validation guard** in `bin/app.ts`, not the bucket:
+
+- **Guard OFF** → `cdk synth SkipTheWait-Phase2-Broken` succeeds — the bad bucket
+  slips through, just like a plain deploy would ship it. The "before".
+- **Guard ON** → the same stack fails synth immediately:
 
 ```
 ERROR [CT.S3.PR.1]: Require an Amazon S3 bucket to have block public access settings configured
@@ -252,7 +256,8 @@ ERROR [CT.S3.PR.1]: Require an Amazon S3 bucket to have block public access sett
 ```
 
 You get the failing rule, the **construct path**, and a fix — on your laptop, in
-one second. The fixed stack sets `BlockPublicAccess.BLOCK_ALL` and passes.
+one second. Same bucket, only the guard moved — so the guard is provably what
+caught it.
 
 ### Phase 3 — "Quick deployments" (deploy)
 
@@ -313,9 +318,8 @@ cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true
 NODE_OPTIONS="--cpu-prof --cpu-prof-dir=./profile" \
   cdk synth SkipTheWait-FeedbackWall -c includeAnalytics=true > /dev/null
 
-# Phase 2 — fail fast
-cdk synth SkipTheWait-Phase2-Broken     # FAILS: CT.S3.PR.1 + construct path
-cdk synth SkipTheWait-Phase2-Fixed      # PASSES
+# Phase 2 — fail fast (toggle the guard in bin/app.ts)
+cdk synth SkipTheWait-Phase2-Broken     # guard ON: FAILS CT.S3.PR.1 + path; guard OFF: passes
 
 # See the wall with no AWS account (demo mode)
 open frontend/index.html

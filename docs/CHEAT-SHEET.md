@@ -1,4 +1,4 @@
-# AWS CDK — Skip the wait · Cheat Sheet
+# AWS IAC: Skip the pain · Cheat Sheet
 
 Which acceleration to reach for at each stage of the loop.
 

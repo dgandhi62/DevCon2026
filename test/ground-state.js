@@ -2,7 +2,7 @@
 "use strict";
 
 /**
- * Ground-state check for the "AWS CDK — Skip the wait" demo.
+ * Ground-state check for the "AWS IAC: Skip the pain" demo.
  *
  * Run this BEFORE a demo to confirm everything is in its known-good baseline,
  * and AFTER a rehearsal to find out what you left broken.
@@ -124,7 +124,7 @@ function hasActiveLine(src, pattern) {
 }
 
 // ============================================================
-console.log("\n=== Ground-state check: AWS CDK — Skip the wait ===");
+console.log("\n=== Ground-state check: AWS IAC: Skip the pain ===");
 console.log("(offline only — no AWS account or deploy involved)");
 
 // ------------------------------------------------------------

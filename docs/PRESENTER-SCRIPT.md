@@ -1,4 +1,4 @@
-# Presenter Script — "AWS CDK: Skip the wait"
+# Presenter Script — "AWS IAC: Skip the pain"
 
 DevCon 2026 booth. One iteration loop, three phases. Total run time ~6–8 min;
 each phase stands alone if someone joins mid-way.

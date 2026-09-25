@@ -1,4 +1,4 @@
-# AWS CDK — "Skip the wait"
+# AWS IAC: Skip the pain
 
 DevCon 2026 booth demo. A small but real serverless app — a **live feedback
 wall** — used to showcase four CDK speed capabilities in one iteration loop:
@@ -23,7 +23,7 @@ Docs:
 - **Feedback wall:** https://d10vcmdyjfal7.cloudfront.net
 - **Reactions API:** https://jqpy0aksui.execute-api.us-east-1.amazonaws.com/prod/
 
-Stack `SkipTheWait-FeedbackWall` in us-east-1 (sandbox 615368094448). URLs come
+Stack `SkipTheWait-FeedbackWall` in us-east-1 (sandbox account). URLs come
 from the `cdk deploy` outputs (`WallUrl` / `ApiUrl`) — they change if you deploy
 a fresh stack.
 

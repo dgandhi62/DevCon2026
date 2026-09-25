@@ -11,7 +11,7 @@ other docs go deeper on individual pieces:
 
 ---
 
-## Live deployment (us-east-1, sandbox account 615368094448)
+## Live deployment (us-east-1, sandbox account)
 
 - **Feedback wall (site):** https://d10vcmdyjfal7.cloudfront.net
 - **Reactions API:** https://jqpy0aksui.execute-api.us-east-1.amazonaws.com/prod/

@@ -1,6 +1,6 @@
 # Ground-state check
 
-A pre-demo sanity check for the "AWS CDK — Skip the wait" booth demo. Run it to
+A pre-demo sanity check for the "AWS IAC: Skip the pain" booth demo. Run it to
 confirm the repo is in its known-good baseline, or to find out what a rehearsal
 left broken.
 

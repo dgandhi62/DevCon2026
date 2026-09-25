@@ -1,7 +1,7 @@
 {
   "name": "cdk-skip-the-wait",
   "version": "1.0.0",
-  "description": "AWS CDK - Skip the wait. DevCon 2026 booth demo: a live feedback wall app showcasing CDK speed features (synth-performance skill, synth-time validation, hotswap, express mode).",
+  "description": "AWS IAC: Skip the pain. DevCon 2026 booth demo: a live feedback wall app showcasing CDK speed features (synth-performance skill, synth-time validation, hotswap, express mode).",
   "private": true,
   "bin": {
     "cdk-skip-the-wait": "bin/app.js"

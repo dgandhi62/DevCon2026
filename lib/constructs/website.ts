@@ -44,16 +44,7 @@ export class FeedbackWebsite extends Construct {
   constructor(scope: Construct, id: string, props: FeedbackWebsiteProps) {
     super(scope, id);
 
-    // ---- A) BUILT-IN validation catches it (CDK throws at synth) --------
-    // this.bucket = new s3.Bucket(this, 'SiteBucket', {
-    //   publicReadAccess: true, // blockPublicAccess stays BLOCK_ALL -> CDK rejects
-    //   encryption: s3.BucketEncryption.S3_MANAGED,
-    //   enforceSSL: true,
-    //   removalPolicy: cdk.RemovalPolicy.DESTROY,
-    //   autoDeleteObjects: true,
-    // });
-
-    // ---- B) POLICY PLUGIN catches it (CDK passes, CFN-Guard fails) ------
+    // ---- A) POLICY PLUGIN catches it (CDK passes, CFN-Guard fails) ------
     // this.bucket = new s3.Bucket(this, 'SiteBucket', {
     //   blockPublicAccess: new s3.BlockPublicAccess({
     //     blockPublicAcls: false, blockPublicPolicy: false,
@@ -66,7 +57,7 @@ export class FeedbackWebsite extends Construct {
     //   autoDeleteObjects: true,
     // });
 
-    // ---- C) LOCKED (default/baseline): private, both checks pass --------
+    // ---- B) LOCKED (default/baseline): private, both checks pass --------
     this.bucket = new s3.Bucket(this, 'SiteBucket', {
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
       encryption: s3.BucketEncryption.S3_MANAGED,
